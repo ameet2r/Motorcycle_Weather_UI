@@ -1,0 +1,25 @@
+{
+  "name": "Vite UI Dev Container",
+  "dockerComposeFile": "../compose.yaml",
+  "service": "ui",
+  "workspaceFolder": "/app",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next"
+      ],
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/sh",
+        "files.watcherExclude": {
+          "**/node_modules/**": true
+        }
+      }
+    }
+  },
+  "forwardPorts": [5173],
+  "remoteUser": "root",
+  "mounts": ["source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached"],
+  "postCreateCommand": "npm install"
+}
