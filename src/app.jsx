@@ -7,6 +7,8 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import NewSearchPage from "./routes/NewSearchPage";
 import Forecast from "./routes/Forecast";
+import Footer from "./components/Footer";
+import Box from '@mui/material/Box';
 
 
 export default function App() {
@@ -32,6 +34,9 @@ export default function App() {
             <Route path="/forecast" element={<Forecast />} />
           </Routes>
         </Container>
+        <Box mt={2}>
+          <Footer />
+        </Box>
       </Router>
     </ThemeProvider>
   );
