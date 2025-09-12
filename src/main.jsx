@@ -1,5 +1,7 @@
-import { render } from 'preact'
+import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './app.jsx'
 
-render(<App />, document.getElementById('app'))
+const container = document.getElementById('app')
+const root = createRoot(container)
+root.render(<App />)

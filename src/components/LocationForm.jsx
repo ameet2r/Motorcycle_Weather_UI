@@ -1,4 +1,15 @@
-import { useState } from "preact/hooks";
+import { useState } from "react";
+import {
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Stack,
+  IconButton,
+  Paper,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 
 export default function LocationForm({ onSubmit }) {
   const [locations, setLocations] = useState([
@@ -13,9 +24,7 @@ export default function LocationForm({ onSubmit }) {
     setLocations(newLocations);
 
     // Validate location and longitude values
-    // const newErrors = [...errors];
     const newErrors = newLocations.map(validateLocation);
-    // newErrors[index] = validateLocation(newLocations[index]);
     setErrors(newErrors);
   };
 
@@ -90,65 +99,72 @@ export default function LocationForm({ onSubmit }) {
   };
 
   return (
-    <div>
-      <h1>Locations Form</h1>
+    <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Locations Form
+      </Typography>
 
-      <form onSubmit={handleSubmit}>
-        {locations.map((loc, index) => (
-          <div key={index}>
-            <div>
-              <input
-                type="text"
-                placeholder="Latitude"
-                value={loc.latitude}
-                onInput={(e) => handleChange(index, "latitude", e.target.value)}
-              />
-              {errors[index]?.latitude && (
-                <span style={{ color: "red", marginLeft: "8px" }}>
-                  {errors[index].latitude}
-                </span>
-              )}
-              <input
-                type="text"
-                placeholder="Longitude"
-                value={loc.longitude}
-                onInput={(e) => handleChange(index, "longitude", e.target.value)}
-              />
-              {errors[index]?.longitude && (
-                <span style={{ color: "red", marginLeft: "8px" }}>
-                  {errors[index].longitude}
-                </span>
-              )}
-            </div>
+      <Box component="form" onSubmit={handleSubmit}>
+        <Stack spacing={3}>
+          {locations.map((loc, index) => (
+            <Paper key={index} elevation={1} sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Location {index + 1}
+              </Typography>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <TextField
+                  label="Latitude"
+                  type="text"
+                  value={loc.latitude}
+                  onChange={(e) => handleChange(index, "latitude", e.target.value)}
+                  error={!!errors[index]?.latitude}
+                  helperText={errors[index]?.latitude}
+                  fullWidth
+                />
+                <TextField
+                  label="Longitude"
+                  type="text"
+                  value={loc.longitude}
+                  onChange={(e) => handleChange(index, "longitude", e.target.value)}
+                  error={!!errors[index]?.longitude}
+                  helperText={errors[index]?.longitude}
+                  fullWidth
+                />
+                <Stack direction="column" spacing={1}>
+                  {locations.length > 1 && (
+                    <IconButton
+                      color="error"
+                      onClick={() => removeLocation(index)}
+                      size="small"
+                    >
+                      <RemoveIcon />
+                    </IconButton>
+                  )}
+                  {index === locations.length - 1 && (
+                    <IconButton
+                      color="primary"
+                      onClick={addLocation}
+                      size="small"
+                    >
+                      <AddIcon />
+                    </IconButton>
+                  )}
+                </Stack>
+              </Stack>
+            </Paper>
+          ))}
 
-            <div>
-              {locations.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeLocation(index)}
-                >
-                  Remove
-                </button>
-              )}
-              {index === locations.length - 1 && (
-                <button
-                  type="button"
-                  onClick={addLocation}
-                >
-                  + Add Location
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-
-        <button
-          type="submit"
-          disabled={errors.some(error => error.latitude || error.longitude)}
-        >
-          Submit
-        </button>
-      </form>
-    </div>
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            disabled={errors.some(error => error.latitude || error.longitude)}
+            sx={{ mt: 2 }}
+          >
+            Submit
+          </Button>
+        </Stack>
+      </Box>
+    </Paper>
   );
 }
