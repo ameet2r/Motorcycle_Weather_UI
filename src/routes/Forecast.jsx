@@ -1,4 +1,11 @@
-import { useState } from "preact/hooks";
+import { useState } from "react";
+import {
+  Typography,
+  Button,
+  Stack,
+  CircularProgress,
+  Box,
+} from "@mui/material";
 import WeatherCard from "../components/WeatherCard";
 
 export default function Forecast() {
@@ -9,7 +16,7 @@ export default function Forecast() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/CoordinatesToWeather/", {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_API}/CoordinatesToWeather/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -51,22 +58,29 @@ export default function Forecast() {
   }
 
   return (
-    <div class="p-4">
-      <h1 class="text-2xl font-bold mb-4">Forecast</h1>
-      <button
+    <Stack spacing={3}>
+      <Typography variant="h4" component="h1">
+        Forecast
+      </Typography>
+      <Button
+        variant="contained"
         onClick={fetchForecast}
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        size="large"
       >
         Fetch Forecast
-      </button>
+      </Button>
 
-      {loading && <p class="mt-4">Loading...</p>}
+      {loading && (
+        <Box display="flex" justifyContent="center">
+          <CircularProgress />
+        </Box>
+      )}
 
-      <div class="mt-4 space-y-2">
+      <Stack spacing={2}>
         {forecast.map((day, idx) => (
           <WeatherCard key={idx} {...day} />
         ))}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }

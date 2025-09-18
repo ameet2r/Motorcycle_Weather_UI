@@ -1,4 +1,16 @@
-import { useState } from "preact/hooks";
+import { useState } from "react";
+import {
+  Typography,
+  Button,
+  Stack,
+  Card,
+  CardContent,
+  List,
+  ListItem,
+  ListItemText,
+  CircularProgress,
+  Box,
+} from "@mui/material";
 import WeatherCard from "../components/WeatherCard";
 import LocationForm from "../components/LocationForm";
 
@@ -10,7 +22,7 @@ export default function NewSearchPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/CoordinatesToWeather/", {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_API}/CoordinatesToWeather/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -42,35 +54,53 @@ export default function NewSearchPage() {
   }
 
   return (
-    <div>
+    <Stack spacing={3}>
       <LocationForm onSubmit={fetchWeather}/>
-      <button
-        onClick={fetchWeather}
-      >
-        Fetch Weather
-      </button>
 
-      {loading && <p>Loading...</p>}
+      {loading && (
+        <Box display="flex" justifyContent="center">
+          <CircularProgress />
+        </Box>
+      )}
+
       <div>
-        <h2>Forecasts:</h2>
-        {forecasts.map((forecast, idx) => (
-          <div key={idx}>
-            <h3>{forecast.key} (Elevation: {forecast.elevation} ft)</h3>
-            <ul>
-              {forecast.periods.map((period, pIdx) => (
-                <li key={pIdx}>
-                  <strong>{period.name}</strong> ({period.start_time} to {period.end_time})<br />
-                  Temp: {period.temperature} °F, {period.short_forecast}<br />
-                  Wind: {period.wind_direction} {period.wind_speed}<br />
-                  Precip: {period.probability_of_precip ?? 0}%<br />
-                  Detailed Forecast: {period.detailed_forecast ?? ""}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        <Typography variant="h4" gutterBottom>
+          Forecasts:
+        </Typography>
+        <Stack spacing={2}>
+          {forecasts && forecasts.length > 0 ? (forecasts.map((forecast, idx) => (
+            <Card key={idx}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  {forecast.key} (Elevation: {forecast.elevation} ft)
+                </Typography>
+                <List dense>
+                  {forecast.periods && forecast.periods.length > 0 ? (forecast.periods.map((period, pIdx) => (
+                    <ListItem key={pIdx}>
+                      <ListItemText
+                        primary={`${period.name} (${period.start_time} to ${period.end_time})`}
+                        secondary={
+                          <>
+                            Temp: {period.temperature} °F, {period.short_forecast}<br />
+                            Wind: {period.wind_direction} {period.wind_speed}<br />
+                            Precip: {period.probability_of_precip ?? 0}%<br />
+                            Detailed Forecast: {period.detailed_forecast ?? ""}
+                          </>
+                        }
+                      />
+                    </ListItem>
+                  ))) : (
+                    <Typography variant="body1">No forecast data could be found for your coordinates</Typography>
+                  )}
+                </List>
+              </CardContent>
+            </Card>
+          ))) : (
+            <Typography variant="body1">No data could be found for your coordinates</Typography>
+          )}
+        </Stack>
       </div>
-    </div>
+    </Stack>
   );
 }
 
