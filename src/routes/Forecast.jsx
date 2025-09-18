@@ -16,7 +16,7 @@ export default function Forecast() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/CoordinatesToWeather/", {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_API}/CoordinatesToWeather/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

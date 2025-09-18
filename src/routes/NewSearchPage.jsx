@@ -14,6 +14,7 @@ import {
 import WeatherCard from "../components/WeatherCard";
 import LocationForm from "../components/LocationForm";
 
+//TODO Update output to show errors if I get a raised exception from the backend.
 export default function NewSearchPage() {
   const [forecasts, setForecasts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,7 +23,7 @@ export default function NewSearchPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/CoordinatesToWeather/", {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_API}/CoordinatesToWeather/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -68,14 +69,14 @@ export default function NewSearchPage() {
           Forecasts:
         </Typography>
         <Stack spacing={2}>
-          {forecasts.map((forecast, idx) => (
+          {forecasts && forecasts.length > 0 ? (forecasts.map((forecast, idx) => (
             <Card key={idx}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
                   {forecast.key} (Elevation: {forecast.elevation} ft)
                 </Typography>
                 <List dense>
-                  {forecast.periods.map((period, pIdx) => (
+                  {forecast.periods && forecast.periods.length > 0 ? (forecast.periods.map((period, pIdx) => (
                     <ListItem key={pIdx}>
                       <ListItemText
                         primary={`${period.name} (${period.start_time} to ${period.end_time})`}
@@ -89,11 +90,15 @@ export default function NewSearchPage() {
                         }
                       />
                     </ListItem>
-                  ))}
+                  ))) : (
+                    <Typography variant="body1">No forecast data could be found for your coordinates</Typography>
+                  )}
                 </List>
               </CardContent>
             </Card>
-          ))}
+          ))) : (
+            <Typography variant="body1">No data could be found for your coordinates</Typography>
+          )}
         </Stack>
       </div>
     </Stack>

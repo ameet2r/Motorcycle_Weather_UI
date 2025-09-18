@@ -43,29 +43,55 @@ export default function LocationForm({ onSubmit }) {
   };
 
   const floatRegex = /^-?\d+(\.\d+)?$/;
-  const validateLocation = (location) => {
-    const error = {};
-
-    if (!floatRegex.test(location.latitude)) {
-      error.latitude = "Latitude must be a valid number";
-    } else {
-      const latitude = parseFloat(location.latitude);
-      if (latitude < -90 || latitude > 90) {
-        error.latitude = "Latitude must be between -90 and 90";
-      }
-    }
-
-    if (!floatRegex.test(location.longitude)) {
-      error.longitude = "Longitude must be a valid number";
-    } else {
-      const longitude = parseFloat(location.longitude);
-      if (longitude < -180 || longitude > 180) {
-        error.longitude = "Longitude must be between -180 and 180";
-      }
-    }
-
-    return error;
+  const COORDINATE_TYPE = {
+    LATITUDE: "Latitude",
+    LONGITUDE: "Longitude",
   };
+
+const us_region_coordinates = [
+  {"lat_min": 24.396308, "lat_max": 49.384358, "lon_min": -125.0, "lon_max": -66.93457},  // CONUS
+  {"lat_min": 51.214183, "lat_max": 71.365162, "lon_min": -179.148909, "lon_max": -129.9795},  // Alaska
+  {"lat_min": 18.9115, "lat_max": 22.2356, "lon_min": -160.2471, "lon_max": -154.8066},  // Hawaii
+  {"lat_min": 17.8833, "lat_max": 18.5152, "lon_min": -67.9451, "lon_max": -65.2152},  // Puerto Rico
+  {"lat_min": 13.25, "lat_max": 13.7, "lon_min": 144.6, "lon_max": 145.0},  // Guam
+  {"lat_min": 14.0, "lat_max": 20.0, "lon_min": 144.9, "lon_max": 146.1},  // Northern Mariana Islands
+  {"lat_min": -14.3, "lat_max": -11.0, "lon_min": -171.0, "lon_max": -168.0},  // American Samoa
+  {"lat_min": 17.6, "lat_max": 18.5, "lon_min": -65.0, "lon_max": -64.3},  // US Virgin Islands
+];
+
+const location_in_us = (latitude, longitude) => {
+  return us_region_coordinates.some(region =>
+    latitude >= region.lat_min &&
+    latitude <= region.lat_max &&
+    longitude >= region.lon_min &&
+    longitude <= region.lon_max
+  );
+};
+
+const validateLocation = (location) => {
+  const error = {};
+
+  if (!floatRegex.test(location.latitude)) {
+    error.latitude = "Latitude must be a valid number";
+  }
+
+  if (!floatRegex.test(location.longitude)) {
+    error.longitude = "Longitude must be a valid number";
+  }
+
+  // Only run region check if both are valid numbers
+  if (!error.latitude && !error.longitude) {
+    const lat = parseFloat(location.latitude);
+    const lon = parseFloat(location.longitude);
+
+    if (!location_in_us(lat, lon)) {
+      error.latitude = "Latitude/Longitude must be within the US or its territories";
+      error.longitude = "Latitude/Longitude must be within the US or its territories";
+    }
+  }
+
+  return error;
+};
 
   // handle form submission
   const handleSubmit = (e) => {
