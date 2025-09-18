@@ -14,7 +14,6 @@ import {
 import WeatherCard from "../components/WeatherCard";
 import LocationForm from "../components/LocationForm";
 
-//TODO Update output to show errors if I get a raised exception from the backend.
 export default function NewSearchPage() {
   const [forecasts, setForecasts] = useState([]);
   const [loading, setLoading] = useState(false);
