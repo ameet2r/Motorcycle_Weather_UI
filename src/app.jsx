@@ -6,7 +6,8 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import NewSearchPage from "./routes/NewSearchPage";
-import Forecast from "./routes/Forecast";
+import PreviousSearchesPage from "./routes/PreviousSearchesPage";
+import ForecastDetailsPage from "./routes/ForecastDetailsPage";
 import Footer from "./components/Footer";
 import Box from '@mui/material/Box';
 
@@ -23,7 +24,7 @@ export default function App() {
             <Button color="inherit" component={Link} to="/">
               New Search
             </Button>
-            <Button color="inherit" component={Link} to="/forecast">
+            <Button color="inherit" component={Link} to="/previous-searches">
               Previous Searches
             </Button>
           </Toolbar>
@@ -31,7 +32,8 @@ export default function App() {
         <Container maxWidth="lg" sx={{ mt: 4 }}>
           <Routes>
             <Route path="/" element={<NewSearchPage />} />
-            <Route path="/forecast" element={<Forecast />} />
+            <Route path="/previous-searches" element={<PreviousSearchesPage />} />
+            <Route path="/forecast/:searchId" element={<ForecastDetailsPage />} />
           </Routes>
         </Container>
         <Box mt={2}>

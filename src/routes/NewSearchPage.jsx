@@ -1,22 +1,18 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Typography,
-  Button,
   Stack,
-  Card,
-  CardContent,
-  List,
-  ListItem,
-  ListItemText,
   CircularProgress,
   Box,
 } from "@mui/material";
-import WeatherCard from "../components/WeatherCard";
 import LocationForm from "../components/LocationForm";
+import { saveSearchToHistory, generateSearchId } from "../utils/localStorage";
+import { generateCoordinateSummary } from "../utils/forecastSummary";
 
 export default function NewSearchPage() {
-  const [forecasts, setForecasts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   async function fetchWeather(locations) {
     setLoading(true);
@@ -37,17 +33,42 @@ export default function NewSearchPage() {
       const result = await response.json();
       const map = result.coordinates_to_forecasts_map;
 
-      // Create an array of forecast objects for all keys
-      const forecastArray = Object.entries(map).flatMap(([key, forecastsForKey]) => {
-        return forecastsForKey.map(forecast => ({
-          key,       // keep track of the lat:lng key if you want
-          ...forecast
-        }));
+      // Transform the data for storage
+      const coordinatesData = Object.entries(map).map(([key, forecastsForKey]) => {
+        // Each coordinate can have multiple forecasts, but we'll take the first one
+        const forecast = forecastsForKey[0];
+        
+        return {
+          key,
+          latitude: key.split(':')[0],
+          longitude: key.split(':')[1],
+          elevation: forecast.elevation,
+          periods: forecast.periods,
+          summary: generateCoordinateSummary(forecast)
+        };
       });
 
-      setForecasts(forecastArray);
+      // Create search object for localStorage
+      const searchData = {
+        id: generateSearchId(),
+        timestamp: new Date().toISOString(),
+        coordinates: coordinatesData
+      };
+
+      // Save to localStorage
+      const saved = saveSearchToHistory(searchData);
+      
+      if (saved) {
+        // Redirect to previous searches page
+        navigate('/previous-searches');
+      } else {
+        console.error('Failed to save search to localStorage');
+        // Could show an error message to user here
+      }
+
     } catch (err) {
       console.error("Error fetching weather:", err);
+      // Could show an error message to user here
     } finally {
       setLoading(false);
     }
@@ -60,46 +81,11 @@ export default function NewSearchPage() {
       {loading && (
         <Box display="flex" justifyContent="center">
           <CircularProgress />
+          <Typography variant="body1" sx={{ ml: 2, alignSelf: 'center' }}>
+            Fetching weather data...
+          </Typography>
         </Box>
       )}
-
-      <div>
-        <Typography variant="h4" gutterBottom>
-          Forecasts:
-        </Typography>
-        <Stack spacing={2}>
-          {forecasts && forecasts.length > 0 ? (forecasts.map((forecast, idx) => (
-            <Card key={idx}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  {forecast.key} (Elevation: {forecast.elevation} ft)
-                </Typography>
-                <List dense>
-                  {forecast.periods && forecast.periods.length > 0 ? (forecast.periods.map((period, pIdx) => (
-                    <ListItem key={pIdx}>
-                      <ListItemText
-                        primary={`${period.name} (${period.start_time} to ${period.end_time})`}
-                        secondary={
-                          <>
-                            Temp: {period.temperature} °F, {period.short_forecast}<br />
-                            Wind: {period.wind_direction} {period.wind_speed}<br />
-                            Precip: {period.probability_of_precip ?? 0}%<br />
-                            Detailed Forecast: {period.detailed_forecast ?? ""}
-                          </>
-                        }
-                      />
-                    </ListItem>
-                  ))) : (
-                    <Typography variant="body1">No forecast data could be found for your coordinates</Typography>
-                  )}
-                </List>
-              </CardContent>
-            </Card>
-          ))) : (
-            <Typography variant="body1">No data could be found for your coordinates</Typography>
-          )}
-        </Stack>
-      </div>
     </Stack>
   );
 }
