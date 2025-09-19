@@ -15,6 +15,16 @@ RUN npm ci
 # Copy all source code
 COPY . .
 
+# ------------------------------
+# Build-time environment variables
+# ------------------------------
+# ARG variables must match the VITE_ prefix for Vite
+ARG VITE_BACKEND_API
+
+# Export them so npm build sees them
+ENV VITE_BACKEND_API=$VITE_BACKEND_API
+
+
 # Build the app
 RUN npm run build
 
