@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Typography,
@@ -46,6 +46,8 @@ export default function ForecastDetailsPage() {
   const [search, setSearch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedPeriods, setExpandedPeriods] = useState(new Set());
+  const periodRefs = useRef({});
 
   useEffect(() => {
     loadSearchDetails();
@@ -102,6 +104,71 @@ export default function ForecastDetailsPage() {
     } catch {
       return `${startTime} - ${endTime}`;
     }
+  };
+
+  const createPeriodToDateMapping = (periods) => {
+    const mapping = {};
+    periods.forEach((period, index) => {
+      if (period.start_time) {
+        try {
+          const startDate = new Date(period.start_time);
+          const dateKey = startDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+          if (!mapping[dateKey]) {
+            mapping[dateKey] = [];
+          }
+          mapping[dateKey].push(index);
+        } catch (error) {
+          console.warn('Invalid date format in period:', period.start_time);
+        }
+      }
+    });
+    return mapping;
+  };
+
+  const handleDailySummaryClick = (selectedDate, coordIndex) => {
+    const coord = search.coordinates[coordIndex];
+    if (!coord.periods) return;
+
+    const periodMapping = createPeriodToDateMapping(coord.periods);
+    const periodIndices = periodMapping[selectedDate];
+    
+    if (!periodIndices || periodIndices.length === 0) return;
+
+    // Expand all periods for the selected day
+    const newExpandedPeriods = new Set(expandedPeriods);
+    periodIndices.forEach(periodIndex => {
+      const periodKey = `${coordIndex}-${periodIndex}`;
+      newExpandedPeriods.add(periodKey);
+    });
+    setExpandedPeriods(newExpandedPeriods);
+
+    // Scroll to the first period of the day
+    const firstPeriodIndex = periodIndices[0];
+    const firstPeriodKey = `${coordIndex}-${firstPeriodIndex}`;
+    const periodElement = periodRefs.current[firstPeriodKey];
+    
+    if (periodElement) {
+      setTimeout(() => {
+        periodElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest'
+        });
+      }, 100); // Small delay to allow accordion expansion animation
+    }
+  };
+
+  const handleAccordionChange = (coordIndex, periodIndex) => (event, isExpanded) => {
+    const periodKey = `${coordIndex}-${periodIndex}`;
+    const newExpandedPeriods = new Set(expandedPeriods);
+    
+    if (isExpanded) {
+      newExpandedPeriods.add(periodKey);
+    } else {
+      newExpandedPeriods.delete(periodKey);
+    }
+    
+    setExpandedPeriods(newExpandedPeriods);
   };
 
   if (loading) {
@@ -287,15 +354,22 @@ export default function ForecastDetailsPage() {
                         .map(([date, daySummary]) => (
                           <Grid size={{ xs: 12, md: 6, lg: 4 }} key={date}>
                             <Paper
+                              onClick={() => handleDailySummaryClick(date, coordIndex)}
                               sx={{
                                 p: 2.5,
                                 borderRadius: 2,
                                 border: '1px solid',
                                 borderColor: 'divider',
+                                cursor: 'pointer',
                                 transition: 'all 0.2s ease-in-out',
                                 '&:hover': {
                                   borderColor: 'primary.main',
-                                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.15)'
+                                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.15)',
+                                  transform: 'translateY(-2px)'
+                                },
+                                '&:active': {
+                                  transform: 'translateY(0px)',
+                                  boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
                                 }
                               }}
                             >
@@ -342,19 +416,32 @@ export default function ForecastDetailsPage() {
                     
                     {coord.periods && coord.periods.length > 0 ? (
                       <Stack spacing={2}>
-                        {coord.periods.map((period, periodIndex) => (
-                          <Accordion
-                            key={periodIndex}
-                            sx={{
-                              borderRadius: '8px !important',
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              '&:before': { display: 'none' },
-                              '&.Mui-expanded': {
-                                borderColor: 'primary.main'
-                              }
-                            }}
-                          >
+                        {coord.periods.map((period, periodIndex) => {
+                          const periodKey = `${coordIndex}-${periodIndex}`;
+                          const isExpanded = expandedPeriods.has(periodKey);
+                          
+                          return (
+                            <Accordion
+                              key={periodIndex}
+                              ref={(el) => {
+                                if (el) {
+                                  periodRefs.current[periodKey] = el;
+                                }
+                              }}
+                              expanded={isExpanded}
+                              onChange={handleAccordionChange(coordIndex, periodIndex)}
+                              sx={{
+                                borderRadius: '8px !important',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                '&:before': { display: 'none' },
+                                '&.Mui-expanded': {
+                                  borderColor: 'primary.main',
+                                  boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)'
+                                },
+                                transition: 'all 0.2s ease-in-out'
+                              }}
+                            >
                             <AccordionSummary
                               expandIcon={<ExpandMoreIcon />}
                               sx={{
@@ -448,7 +535,8 @@ export default function ForecastDetailsPage() {
                               </Grid>
                             </AccordionDetails>
                           </Accordion>
-                        ))}
+                          );
+                        })}
                       </Stack>
                     ) : (
                       <Alert severity="info" sx={{ borderRadius: 2 }}>
