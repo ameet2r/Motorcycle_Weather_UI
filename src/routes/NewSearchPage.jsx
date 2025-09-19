@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { keyframes } from "@emotion/react";
 import {
   Typography,
   Stack,
@@ -17,6 +18,21 @@ import { generateCoordinateSummary } from "../utils/forecastSummary";
 import CloudIcon from '@mui/icons-material/Cloud';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+
+const pulse = keyframes`
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
 
 export default function NewSearchPage() {
   const [loading, setLoading] = useState(false);
@@ -174,7 +190,7 @@ export default function NewSearchPage() {
                 sx={{
                   fontSize: 48,
                   color: 'primary.main',
-                  animation: 'pulse 2s infinite'
+                  animation: `${pulse} 2s infinite`
                 }}
               />
             </Box>
@@ -203,23 +219,6 @@ export default function NewSearchPage() {
           </Paper>
         </Backdrop>
       </Stack>
-
-      <style jsx>{`
-        @keyframes pulse {
-          0% {
-            opacity: 1;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.7;
-            transform: scale(1.05);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
     </Box>
   );
 }
