@@ -7,9 +7,15 @@ import {
   Box,
   Paper,
   Alert,
+  Fade,
+  Skeleton,
+  Chip,
+  Divider,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
+import HistoryIcon from "@mui/icons-material/History";
+import InfoIcon from "@mui/icons-material/Info";
 import { getSearchHistory, clearSearchHistory } from "../utils/localStorage";
 import SearchSummaryCard from "../components/SearchSummaryCard";
 
@@ -55,84 +61,193 @@ export default function PreviousSearchesPage() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" mt={4}>
-        <Typography>Loading search history...</Typography>
+      <Box className="fade-in">
+        <Stack spacing={3}>
+          {/* Header Skeleton */}
+          <Box>
+            <Skeleton variant="text" width={300} height={48} sx={{ mb: 1 }} />
+            <Skeleton variant="text" width={500} height={24} />
+          </Box>
+          
+          {/* Button Skeleton */}
+          <Stack direction="row" spacing={2}>
+            <Skeleton variant="rectangular" width={140} height={36} sx={{ borderRadius: 1 }} />
+            <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 1 }} />
+          </Stack>
+          
+          {/* Cards Skeleton */}
+          {[1, 2, 3].map((item) => (
+            <Paper key={item} sx={{ p: 3, borderRadius: 3 }}>
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Skeleton variant="circular" width={48} height={48} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width={200} height={24} />
+                    <Skeleton variant="text" width={150} height={20} />
+                  </Box>
+                </Box>
+                <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 2 }} />
+              </Stack>
+            </Paper>
+          ))}
+        </Stack>
       </Box>
     );
   }
 
   return (
-    <Stack spacing={3}>
-      {/* Header */}
-      <Box>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Previous Searches
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Click on any search to view detailed forecast information
-        </Typography>
-      </Box>
-
-      {/* Action buttons */}
-      <Stack direction="row" spacing={2}>
-        <Button
-          variant="contained"
-          startIcon={<SearchIcon />}
-          onClick={handleNewSearch}
-        >
-          New Search
-        </Button>
-        {searches.length > 0 && (
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleClearHistory}
-          >
-            Clear History
-          </Button>
-        )}
-      </Stack>
-
-      {/* Search history */}
-      {searches.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" gutterBottom>
-            No Previous Searches
+    <Box className="fade-in">
+      <Stack spacing={4}>
+        {/* Header Section */}
+        <Box sx={{ textAlign: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+            <HistoryIcon sx={{ fontSize: 32, color: 'primary.main', mr: 1 }} />
+            <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
+              Search History
+            </Typography>
+          </Box>
+          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+            Review your previous weather searches and access detailed forecast information
           </Typography>
-          <Typography variant="body1" color="text.secondary" paragraph>
-            You haven't performed any weather searches yet. Start by creating a new search to see your forecast history here.
-          </Typography>
+        </Box>
+
+        {/* Action Buttons */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             startIcon={<SearchIcon />}
             onClick={handleNewSearch}
-            sx={{ mt: 2 }}
+            sx={{
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              fontWeight: 600,
+              textTransform: 'none',
+              boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+              '&:hover': {
+                boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                transform: 'translateY(-2px)'
+              }
+            }}
           >
-            Create Your First Search
+            New Search
           </Button>
-        </Paper>
-      ) : (
-        <Stack spacing={2}>
-          <Typography variant="h6">
-            {searches.length} search{searches.length > 1 ? 'es' : ''} found
-          </Typography>
-          {searches.map((search) => (
-            <SearchSummaryCard
-              key={search.id}
-              search={search}
-              onClick={handleSearchClick}
-            />
-          ))}
-        </Stack>
-      )}
+          {searches.length > 0 && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleClearHistory}
+              sx={{
+                px: 3,
+                py: 1.5,
+                borderRadius: 2,
+                fontWeight: 600,
+                textTransform: 'none',
+                borderWidth: '1.5px',
+                '&:hover': {
+                  borderWidth: '1.5px',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+            >
+              Clear History
+            </Button>
+          )}
+        </Box>
 
-      {/* Info alert */}
-      {searches.length > 0 && (
-        <Alert severity="info">
-          Search history is stored locally in your browser. Clearing your browser cache will remove this data.
-        </Alert>
-      )}
-    </Stack>
+        {/* Search Results */}
+        {searches.length === 0 ? (
+          <Fade in={true}>
+            <Paper
+              sx={{
+                p: 6,
+                textAlign: 'center',
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.02) 0%, rgba(66, 165, 245, 0.02) 100%)',
+                border: '1px solid',
+                borderColor: 'divider'
+              }}
+            >
+              <HistoryIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+              <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
+                No Search History
+              </Typography>
+              <Typography variant="body1" color="text.secondary" paragraph sx={{ maxWidth: 400, mx: 'auto' }}>
+                You haven't performed any weather searches yet. Create your first search to start building your forecast history.
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<SearchIcon />}
+                onClick={handleNewSearch}
+                size="large"
+                sx={{
+                  mt: 2,
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  textTransform: 'none'
+                }}
+              >
+                Create Your First Search
+              </Button>
+            </Paper>
+          </Fade>
+        ) : (
+          <Stack spacing={3}>
+            {/* Results Header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                  Search Results
+                </Typography>
+                <Chip
+                  label={`${searches.length} search${searches.length > 1 ? 'es' : ''}`}
+                  color="primary"
+                  variant="outlined"
+                  size="small"
+                />
+              </Box>
+            </Box>
+
+            <Divider />
+
+            {/* Search Cards */}
+            <Stack spacing={3}>
+              {searches.map((search, index) => (
+                <Fade in={true} key={search.id} timeout={300 + index * 100}>
+                  <div>
+                    <SearchSummaryCard
+                      search={search}
+                      onClick={handleSearchClick}
+                    />
+                  </div>
+                </Fade>
+              ))}
+            </Stack>
+          </Stack>
+        )}
+
+        {/* Info Alert */}
+        {searches.length > 0 && (
+          <Fade in={true}>
+            <Alert
+              severity="info"
+              icon={<InfoIcon />}
+              sx={{
+                borderRadius: 2,
+                '& .MuiAlert-message': { fontSize: '0.875rem' }
+              }}
+            >
+              <Typography variant="body2">
+                <strong>Data Storage:</strong> Search history is stored locally in your browser.
+                Clearing your browser cache or data will remove this information.
+              </Typography>
+            </Alert>
+          </Fade>
+        )}
+      </Stack>
+    </Box>
   );
 }
