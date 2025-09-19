@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Typography,
@@ -13,8 +13,25 @@ import {
   Chip,
   Paper,
   Alert,
+  Grid,
+  Divider,
+  Avatar,
+  Tooltip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Fade,
+  Skeleton,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import ThermostatIcon from "@mui/icons-material/Thermostat";
+import AirIcon from "@mui/icons-material/Air";
+import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import HeightIcon from "@mui/icons-material/Height";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import { getSearchById } from "../utils/localStorage";
 import {
   formatTemperatureRange,
@@ -29,6 +46,8 @@ export default function ForecastDetailsPage() {
   const [search, setSearch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedPeriods, setExpandedPeriods] = useState(new Set());
+  const periodRefs = useRef({});
 
   useEffect(() => {
     loadSearchDetails();
@@ -87,158 +106,452 @@ export default function ForecastDetailsPage() {
     }
   };
 
+  const createPeriodToDateMapping = (periods) => {
+    const mapping = {};
+    periods.forEach((period, index) => {
+      if (period.start_time) {
+        try {
+          const startDate = new Date(period.start_time);
+          const dateKey = startDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+          if (!mapping[dateKey]) {
+            mapping[dateKey] = [];
+          }
+          mapping[dateKey].push(index);
+        } catch (error) {
+          console.warn('Invalid date format in period:', period.start_time);
+        }
+      }
+    });
+    return mapping;
+  };
+
+  const handleDailySummaryClick = (selectedDate, coordIndex) => {
+    const coord = search.coordinates[coordIndex];
+    if (!coord.periods) return;
+
+    const periodMapping = createPeriodToDateMapping(coord.periods);
+    const periodIndices = periodMapping[selectedDate];
+    
+    if (!periodIndices || periodIndices.length === 0) return;
+
+    // Expand all periods for the selected day
+    const newExpandedPeriods = new Set(expandedPeriods);
+    periodIndices.forEach(periodIndex => {
+      const periodKey = `${coordIndex}-${periodIndex}`;
+      newExpandedPeriods.add(periodKey);
+    });
+    setExpandedPeriods(newExpandedPeriods);
+
+    // Scroll to the first period of the day
+    const firstPeriodIndex = periodIndices[0];
+    const firstPeriodKey = `${coordIndex}-${firstPeriodIndex}`;
+    const periodElement = periodRefs.current[firstPeriodKey];
+    
+    if (periodElement) {
+      setTimeout(() => {
+        periodElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest'
+        });
+      }, 100); // Small delay to allow accordion expansion animation
+    }
+  };
+
+  const handleAccordionChange = (coordIndex, periodIndex) => (event, isExpanded) => {
+    const periodKey = `${coordIndex}-${periodIndex}`;
+    const newExpandedPeriods = new Set(expandedPeriods);
+    
+    if (isExpanded) {
+      newExpandedPeriods.add(periodKey);
+    } else {
+      newExpandedPeriods.delete(periodKey);
+    }
+    
+    setExpandedPeriods(newExpandedPeriods);
+  };
+
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" mt={4}>
-        <Typography>Loading forecast details...</Typography>
+      <Box className="fade-in">
+        <Stack spacing={3}>
+          {/* Back Button Skeleton */}
+          <Skeleton variant="rectangular" width={200} height={36} sx={{ borderRadius: 1 }} />
+          
+          {/* Header Skeleton */}
+          <Box>
+            <Skeleton variant="text" width={300} height={48} sx={{ mb: 1 }} />
+            <Skeleton variant="text" width={400} height={24} />
+          </Box>
+          
+          {/* Content Skeleton */}
+          {[1, 2].map((item) => (
+            <Paper key={item} sx={{ p: 3, borderRadius: 3 }}>
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Skeleton variant="circular" width={48} height={48} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width={200} height={24} />
+                    <Skeleton variant="text" width={150} height={20} />
+                  </Box>
+                </Box>
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 2 }} />
+              </Stack>
+            </Paper>
+          ))}
+        </Stack>
       </Box>
     );
   }
 
   if (error || !search) {
     return (
-      <Stack spacing={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBackClick}
-          sx={{ alignSelf: 'flex-start' }}
-        >
-          Back to Previous Searches
-        </Button>
-        <Alert severity="error">
-          {error || 'Search not found'}
-        </Alert>
-      </Stack>
+      <Box className="fade-in">
+        <Stack spacing={3}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={handleBackClick}
+            variant="outlined"
+            sx={{
+              alignSelf: 'flex-start',
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 500
+            }}
+          >
+            Back to Previous Searches
+          </Button>
+          <Alert
+            severity="error"
+            sx={{ borderRadius: 2, p: 3 }}
+          >
+            <Typography variant="h6" gutterBottom>
+              {error ? 'Error Loading Forecast' : 'Search Not Found'}
+            </Typography>
+            <Typography variant="body2">
+              {error || 'The requested search could not be found. It may have been deleted or expired.'}
+            </Typography>
+          </Alert>
+        </Stack>
+      </Box>
     );
   }
 
   return (
-    <Stack spacing={3}>
-      {/* Back button */}
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={handleBackClick}
-        sx={{ alignSelf: 'flex-start' }}
-      >
-        Back to Previous Searches
-      </Button>
+    <Box className="fade-in">
+      <Stack spacing={4}>
+        {/* Navigation */}
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={handleBackClick}
+          variant="outlined"
+          sx={{
+            alignSelf: 'flex-start',
+            borderRadius: 2,
+            px: 3,
+            py: 1,
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': {
+              transform: 'translateX(-4px)'
+            }
+          }}
+        >
+          Back to Previous Searches
+        </Button>
 
-      {/* Header */}
-      <Box>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Forecast Details
-        </Typography>
-        <Typography variant="h6" color="text.secondary">
-          Search from {formatDateTime(search.timestamp)}
-        </Typography>
-      </Box>
+        {/* Header Section */}
+        <Box sx={{ textAlign: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+            <AccessTimeIcon sx={{ fontSize: 32, color: 'primary.main', mr: 1 }} />
+            <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
+              Forecast Details
+            </Typography>
+          </Box>
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+            Search from {formatDateTime(search.timestamp)}
+          </Typography>
+          <Chip
+            label={`${search.coordinates.length} location${search.coordinates.length > 1 ? 's' : ''}`}
+            color="primary"
+            variant="outlined"
+          />
+        </Box>
 
-      {/* Forecast data for each coordinate */}
-      <Stack spacing={3}>
-        {search.coordinates.map((coord, coordIndex) => (
-          <Card key={coordIndex} sx={{ mb: 2 }}>
-            <CardContent>
-              {/* Coordinate header */}
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="h5" gutterBottom>
-                  {coord.latitude}, {coord.longitude}
-                </Typography>
-                <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                  Elevation: {coord.elevation} ft
-                </Typography>
-                
-                {/* Daily Summary Overview */}
-                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
-                  Daily Summaries ({coord.summary.dayCount} days, {coord.summary.totalPeriods} periods)
-                </Typography>
-                <Stack spacing={1}>
-                  {Object.entries(coord.summary.dailySummaries)
-                    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-                    .map(([date, daySummary]) => (
-                      <Box key={date} sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1 }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                          {formatDateWithRelativeDay(date)} ({daySummary.periodCount} periods)
+        {/* Location Forecasts */}
+        <Stack spacing={4}>
+          {search.coordinates.map((coord, coordIndex) => (
+            <Fade in={true} key={coordIndex} timeout={300 + coordIndex * 200}>
+              <Card
+                sx={{
+                  borderRadius: 3,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  overflow: 'visible'
+                }}
+              >
+                <CardContent sx={{ p: 0 }}>
+                  {/* Location Header */}
+                  <Box
+                    sx={{
+                      p: 3,
+                      background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(66, 165, 245, 0.05) 100%)',
+                      borderBottom: '1px solid',
+                      borderColor: 'divider'
+                    }}
+                  >
+                    <Grid container spacing={3} alignItems="center">
+                      <Grid>
+                        <Avatar
+                          sx={{
+                            bgcolor: 'primary.main',
+                            width: 56,
+                            height: 56
+                          }}
+                        >
+                          <LocationOnIcon sx={{ fontSize: 28 }} />
+                        </Avatar>
+                      </Grid>
+                      <Grid size="grow">
+                        <Typography variant="h5" sx={{ fontWeight: 600, mb: 1, fontFamily: 'monospace' }}>
+                          {coord.latitude}, {coord.longitude}
                         </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                           <Chip
-                            label={`Temp: ${formatTemperatureRange(daySummary.tempRange)}`}
-                            color="primary"
-                            variant="outlined"
-                            size="small"
-                          />
-                          <Chip
-                            label={`Wind: ${formatWindRange(daySummary.windRange)}`}
+                            icon={<HeightIcon />}
+                            label={`${coord.elevation} ft elevation`}
                             color="secondary"
                             variant="outlined"
                             size="small"
                           />
                           <Chip
-                            label={`Precip: ${formatPrecipitationRange(daySummary.precipRange)}`}
+                            icon={<CalendarTodayIcon />}
+                            label={`${coord.summary.dayCount} days`}
                             color="info"
                             variant="outlined"
                             size="small"
                           />
-                        </Stack>
-                      </Box>
-                    ))}
-                </Stack>
-              </Box>
+                          <Chip
+                            label={`${coord.summary.totalPeriods} periods`}
+                            variant="outlined"
+                            size="small"
+                          />
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Box>
 
-              {/* Detailed periods */}
-              <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
-                Detailed Forecast Periods
-              </Typography>
-              
-              {coord.periods && coord.periods.length > 0 ? (
-                <List dense>
-                  {coord.periods.map((period, periodIndex) => (
-                    <ListItem key={periodIndex} sx={{ mb: 1 }}>
-                      <Paper sx={{ width: '100%', p: 2 }}>
-                        <ListItemText
-                          primary={
-                            <Typography variant="h6" component="div">
-                              {period.name || `Period ${periodIndex + 1}`}
-                            </Typography>
-                          }
-                          secondaryTypographyProps={{ component: 'div' }}
-                          secondary={
-                            <Stack spacing={1} sx={{ mt: 1 }}>
-                              <Typography variant="body2" component="span">
-                                <strong>Time:</strong> {formatPeriodTime(period.start_time, period.end_time)}
+                  {/* Daily Summaries */}
+                  <Box sx={{ p: 3 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                      Daily Weather Summary
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {Object.entries(coord.summary.dailySummaries)
+                        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+                        .map(([date, daySummary]) => (
+                          <Grid size={{ xs: 12, md: 6, lg: 4 }} key={date}>
+                            <Paper
+                              onClick={() => handleDailySummaryClick(date, coordIndex)}
+                              sx={{
+                                p: 2.5,
+                                borderRadius: 2,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease-in-out',
+                                '&:hover': {
+                                  borderColor: 'primary.main',
+                                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.15)',
+                                  transform: 'translateY(-2px)'
+                                },
+                                '&:active': {
+                                  transform: 'translateY(0px)',
+                                  boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
+                                }
+                              }}
+                            >
+                              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                                {formatDateWithRelativeDay(date)}
                               </Typography>
-                              <Typography variant="body2" component="span">
-                                <strong>Temperature:</strong> {period.temperature}°F
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                {daySummary.periodCount} forecast periods
                               </Typography>
-                              <Typography variant="body2" component="span">
-                                <strong>Wind:</strong> {period.wind_direction} {period.wind_speed}
-                              </Typography>
-                              <Typography variant="body2" component="span">
-                                <strong>Precipitation Chance:</strong> {period.probability_of_precip ?? 0}%
+                              
+                              <Stack spacing={1.5}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ThermostatIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                                  <Typography variant="body2">
+                                    <strong>Temperature:</strong> {formatTemperatureRange(daySummary.tempRange)}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <AirIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
+                                  <Typography variant="body2">
+                                    <strong>Wind:</strong> {formatWindRange(daySummary.windRange)}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <WaterDropIcon sx={{ fontSize: 18, color: 'info.main' }} />
+                                  <Typography variant="body2">
+                                    <strong>Precipitation:</strong> {formatPrecipitationRange(daySummary.precipRange)}
+                                  </Typography>
+                                </Box>
+                              </Stack>
+                            </Paper>
+                          </Grid>
+                        ))}
+                    </Grid>
+                  </Box>
+
+                  <Divider />
+
+                  {/* Detailed Periods */}
+                  <Box sx={{ p: 3 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                      Detailed Forecast Periods
+                    </Typography>
+                    
+                    {coord.periods && coord.periods.length > 0 ? (
+                      <Stack spacing={2}>
+                        {coord.periods.map((period, periodIndex) => {
+                          const periodKey = `${coordIndex}-${periodIndex}`;
+                          const isExpanded = expandedPeriods.has(periodKey);
+                          
+                          return (
+                            <Accordion
+                              key={periodIndex}
+                              ref={(el) => {
+                                if (el) {
+                                  periodRefs.current[periodKey] = el;
+                                }
+                              }}
+                              expanded={isExpanded}
+                              onChange={handleAccordionChange(coordIndex, periodIndex)}
+                              sx={{
+                                borderRadius: '8px !important',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                '&:before': { display: 'none' },
+                                '&.Mui-expanded': {
+                                  borderColor: 'primary.main',
+                                  boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)'
+                                },
+                                transition: 'all 0.2s ease-in-out'
+                              }}
+                            >
+                            <AccordionSummary
+                              expandIcon={<ExpandMoreIcon />}
+                              sx={{
+                                borderRadius: 1,
+                                '&.Mui-expanded': {
+                                  borderBottomLeftRadius: 0,
+                                  borderBottomRightRadius: 0
+                                }
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                  {period.name || `Period ${periodIndex + 1}`}
                                 </Typography>
-                              <Typography variant="body2" component="span">
-                                <strong>Conditions:</strong> {period.short_forecast}
-                              </Typography>
-                              {period.detailed_forecast && (
-                                <Typography variant="body2" component="span">
-                                  <strong>Details:</strong> {period.detailed_forecast}
-                                </Typography>
-                              )}
-                            </Stack>
-                          }
-                        />
-                      </Paper>
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body1" color="text.secondary">
-                  No detailed forecast periods available for this coordinate.
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                                <Box sx={{ display: 'flex', gap: 1, ml: 'auto', mr: 2 }}>
+                                  <Chip
+                                    label={`${period.temperature}°F`}
+                                    size="small"
+                                    color="primary"
+                                    variant="outlined"
+                                  />
+                                  <Chip
+                                    label={`${period.probability_of_precip ?? 0}%`}
+                                    size="small"
+                                    color="info"
+                                    variant="outlined"
+                                  />
+                                </Box>
+                              </Box>
+                            </AccordionSummary>
+                            <AccordionDetails sx={{ pt: 0 }}>
+                              <Grid container spacing={3}>
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                  <Stack spacing={2}>
+                                    <Box>
+                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                        Time Period
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {formatPeriodTime(period.start_time, period.end_time)}
+                                      </Typography>
+                                    </Box>
+                                    <Box>
+                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                        Temperature
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {period.temperature}°F
+                                      </Typography>
+                                    </Box>
+                                    <Box>
+                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                        Wind Conditions
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {period.wind_direction} {period.wind_speed}
+                                      </Typography>
+                                    </Box>
+                                    <Box>
+                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                        Precipitation Chance
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {period.probability_of_precip ?? 0}%
+                                      </Typography>
+                                    </Box>
+                                  </Stack>
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                  <Stack spacing={2}>
+                                    <Box>
+                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                        Short Forecast
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {period.short_forecast}
+                                      </Typography>
+                                    </Box>
+                                    {period.detailed_forecast && (
+                                      <Box>
+                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                          Detailed Forecast
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {period.detailed_forecast}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Grid>
+                              </Grid>
+                            </AccordionDetails>
+                          </Accordion>
+                          );
+                        })}
+                      </Stack>
+                    ) : (
+                      <Alert severity="info" sx={{ borderRadius: 2 }}>
+                        <Typography variant="body2">
+                          No detailed forecast periods available for this coordinate.
+                        </Typography>
+                      </Alert>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Fade>
+          ))}
+        </Stack>
       </Stack>
-    </Stack>
+    </Box>
   );
 }

@@ -7,9 +7,17 @@ import {
   Stack,
   IconButton,
   Paper,
+  Fade,
+  Tooltip,
+  Alert,
+  Divider,
+  Chip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import SearchIcon from "@mui/icons-material/Search";
+import InfoIcon from "@mui/icons-material/Info";
 
 export default function LocationForm({ onSubmit }) {
   const [locations, setLocations] = useState([
@@ -125,72 +133,200 @@ const validateLocation = (location) => {
   };
 
   return (
-    <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Locations Form
-      </Typography>
-
-      <Box component="form" onSubmit={handleSubmit}>
-        <Stack spacing={3}>
-          {locations.map((loc, index) => (
-            <Paper key={index} elevation={1} sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Location {index + 1}
-              </Typography>
-              <Stack direction="row" spacing={2} alignItems="flex-start">
-                <TextField
-                  label="Latitude"
-                  type="text"
-                  value={loc.latitude}
-                  onChange={(e) => handleChange(index, "latitude", e.target.value)}
-                  error={!!errors[index]?.latitude}
-                  helperText={errors[index]?.latitude}
-                  fullWidth
-                />
-                <TextField
-                  label="Longitude"
-                  type="text"
-                  value={loc.longitude}
-                  onChange={(e) => handleChange(index, "longitude", e.target.value)}
-                  error={!!errors[index]?.longitude}
-                  helperText={errors[index]?.longitude}
-                  fullWidth
-                />
-                <Stack direction="column" spacing={1}>
-                  {locations.length > 1 && (
-                    <IconButton
-                      color="error"
-                      onClick={() => removeLocation(index)}
-                      size="small"
-                    >
-                      <RemoveIcon />
-                    </IconButton>
-                  )}
-                  {index === locations.length - 1 && (
-                    <IconButton
-                      color="primary"
-                      onClick={addLocation}
-                      size="small"
-                    >
-                      <AddIcon />
-                    </IconButton>
-                  )}
-                </Stack>
-              </Stack>
-            </Paper>
-          ))}
-
-          <Button
-            type="submit"
-            variant="contained"
-            size="large"
-            disabled={errors.some(error => error.latitude || error.longitude)}
-            sx={{ mt: 2 }}
+    <Box className="fade-in">
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 3, sm: 4 },
+          mb: 4,
+          background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.02) 0%, rgba(66, 165, 245, 0.02) 100%)',
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 3
+        }}
+      >
+        {/* Header Section */}
+        <Box sx={{ mb: 4, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+            <LocationOnIcon sx={{ fontSize: 32, color: 'primary.main', mr: 1 }} />
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
+              Weather Locations
+            </Typography>
+          </Box>
+          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+            Enter coordinates for locations within the US and its territories to get detailed weather forecasts
+          </Typography>
+          
+          {/* Info Alert */}
+          <Alert
+            severity="info"
+            icon={<InfoIcon />}
+            sx={{
+              mt: 3,
+              borderRadius: 2,
+              '& .MuiAlert-message': { fontSize: '0.875rem' }
+            }}
           >
-            Submit
-          </Button>
-        </Stack>
-      </Box>
-    </Paper>
+            <Typography variant="body2">
+              <strong>Supported regions:</strong> Continental US, Alaska, Hawaii, Puerto Rico, US Virgin Islands, Guam, Northern Mariana Islands, and American Samoa
+            </Typography>
+          </Alert>
+        </Box>
+
+        <Box component="form" onSubmit={handleSubmit}>
+          <Stack spacing={3}>
+            {/* Location Cards */}
+            {locations.map((loc, index) => (
+              <Fade in={true} key={index} timeout={300 + index * 100}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.15)'
+                    }
+                  }}
+                >
+                  {/* Location Header */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Chip
+                        label={`Location ${index + 1}`}
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    </Box>
+                    
+                    {/* Action Buttons */}
+                    <Stack direction="row" spacing={1}>
+                      {locations.length > 1 && (
+                        <Tooltip title="Remove Location">
+                          <IconButton
+                            color="error"
+                            onClick={() => removeLocation(index)}
+                            size="small"
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'error.main',
+                                color: 'error.contrastText',
+                                transform: 'scale(1.1)'
+                              }
+                            }}
+                          >
+                            <RemoveIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {index === locations.length - 1 && (
+                        <Tooltip title="Add Another Location">
+                          <IconButton
+                            color="primary"
+                            onClick={addLocation}
+                            size="small"
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'primary.main',
+                                color: 'primary.contrastText',
+                                transform: 'scale(1.1)'
+                              }
+                            }}
+                          >
+                            <AddIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
+                  </Box>
+
+                  {/* Coordinate Inputs */}
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={2}
+                    alignItems="flex-start"
+                  >
+                    <TextField
+                      label="Latitude"
+                      type="text"
+                      value={loc.latitude}
+                      onChange={(e) => handleChange(index, "latitude", e.target.value)}
+                      error={!!errors[index]?.latitude}
+                      helperText={errors[index]?.latitude || "e.g., 40.7128"}
+                      fullWidth
+                      placeholder="Enter latitude"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '&.Mui-focused': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main'
+                            }
+                          }
+                        }
+                      }}
+                    />
+                    <TextField
+                      label="Longitude"
+                      type="text"
+                      value={loc.longitude}
+                      onChange={(e) => handleChange(index, "longitude", e.target.value)}
+                      error={!!errors[index]?.longitude}
+                      helperText={errors[index]?.longitude || "e.g., -74.0060"}
+                      fullWidth
+                      placeholder="Enter longitude"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '&.Mui-focused': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main'
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  </Stack>
+                </Paper>
+              </Fade>
+            ))}
+
+            <Divider sx={{ my: 2 }} />
+
+            <Box sx={{ display: 'flex', justifyContent: 'center', pt: 2 }}>
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                startIcon={<SearchIcon />}
+                disabled={errors.some(error => error.latitude || error.longitude)}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  textTransform: 'none',
+                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                  '&:hover': {
+                    boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                    transform: 'translateY(-2px)'
+                  },
+                  '&:disabled': {
+                    backgroundColor: 'action.disabledBackground',
+                    color: 'action.disabled'
+                  }
+                }}
+              >
+                Get Weather Forecast
+              </Button>
+            </Box>
+          </Stack>
+        </Box>
+      </Paper>
+    </Box>
   );
 }
