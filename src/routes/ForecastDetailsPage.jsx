@@ -236,7 +236,7 @@ export default function ForecastDetailsPage() {
                     }}
                   >
                     <Grid container spacing={3} alignItems="center">
-                      <Grid item>
+                      <Grid>
                         <Avatar
                           sx={{
                             bgcolor: 'primary.main',
@@ -247,7 +247,7 @@ export default function ForecastDetailsPage() {
                           <LocationOnIcon sx={{ fontSize: 28 }} />
                         </Avatar>
                       </Grid>
-                      <Grid item xs>
+                      <Grid size="grow">
                         <Typography variant="h5" sx={{ fontWeight: 600, mb: 1, fontFamily: 'monospace' }}>
                           {coord.latitude}, {coord.longitude}
                         </Typography>
@@ -285,7 +285,7 @@ export default function ForecastDetailsPage() {
                       {Object.entries(coord.summary.dailySummaries)
                         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
                         .map(([date, daySummary]) => (
-                          <Grid item xs={12} md={6} lg={4} key={date}>
+                          <Grid size={{ xs: 12, md: 6, lg: 4 }} key={date}>
                             <Paper
                               sx={{
                                 p: 2.5,
@@ -387,7 +387,7 @@ export default function ForecastDetailsPage() {
                             </AccordionSummary>
                             <AccordionDetails sx={{ pt: 0 }}>
                               <Grid container spacing={3}>
-                                <Grid item xs={12} md={6}>
+                                <Grid size={{ xs: 12, md: 6 }}>
                                   <Stack spacing={2}>
                                     <Box>
                                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -423,7 +423,7 @@ export default function ForecastDetailsPage() {
                                     </Box>
                                   </Stack>
                                 </Grid>
-                                <Grid item xs={12} md={6}>
+                                <Grid size={{ xs: 12, md: 6 }}>
                                   <Stack spacing={2}>
                                     <Box>
                                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>

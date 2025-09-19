@@ -96,16 +96,16 @@ export default function SearchSummaryCard({ search, onClick }) {
               </Box>
               
               <Tooltip title="View Details">
-                <IconButton
+                <LaunchIcon
                   className="launch-icon"
                   sx={{
                     opacity: 0,
                     transition: 'all 0.2s ease-in-out',
-                    color: 'primary.main'
+                    color: 'primary.main',
+                    fontSize: 20,
+                    cursor: 'pointer'
                   }}
-                >
-                  <LaunchIcon />
-                </IconButton>
+                />
               </Tooltip>
             </Box>
 
