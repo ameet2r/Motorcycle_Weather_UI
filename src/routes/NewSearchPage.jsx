@@ -48,8 +48,6 @@ export default function NewSearchPage() {
 
     try {
       setLoadingStep('Validating coordinates...');
-      await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for UX
-
       setLoadingStep('Fetching weather data...');
       const response = await fetch(`${import.meta.env.VITE_BACKEND_API}/CoordinatesToWeather/`, {
           method: "POST",
@@ -83,7 +81,6 @@ export default function NewSearchPage() {
       });
 
       setLoadingStep('Saving search results...');
-      await new Promise(resolve => setTimeout(resolve, 300)); // Small delay for UX
 
       // Create search object for localStorage
       const searchData = {
@@ -98,11 +95,7 @@ export default function NewSearchPage() {
       if (saved) {
         setLoadingStep('Complete!');
         setSuccess(true);
-        
-        // Show success state briefly before navigating
-        setTimeout(() => {
-          navigate('/previous-searches');
-        }, 1000);
+        navigate('/previous-searches');
       } else {
         throw new Error('Failed to save search results');
       }

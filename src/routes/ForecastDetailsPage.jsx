@@ -152,13 +152,11 @@ export default function ForecastDetailsPage() {
     const periodElement = periodRefs.current[firstPeriodKey];
     
     if (periodElement) {
-      setTimeout(() => {
-        periodElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-          inline: 'nearest'
-        });
-      }, 100); // Small delay to allow accordion expansion animation
+      periodElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+        inline: 'nearest'
+      });
     }
   };
 
@@ -287,7 +285,7 @@ export default function ForecastDetailsPage() {
         {/* Location Forecasts */}
         <Stack spacing={4}>
           {search.coordinates.map((coord, coordIndex) => (
-            <Fade in={true} key={coordIndex} timeout={300 + coordIndex * 200}>
+            <Fade in={true} key={coordIndex}>
               <Card
                 sx={{
                   borderRadius: 3,

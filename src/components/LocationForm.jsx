@@ -177,7 +177,7 @@ const validateLocation = (location) => {
           <Stack spacing={3}>
             {/* Location Cards */}
             {locations.map((loc, index) => (
-              <Fade in={true} key={index} timeout={300 + index * 100}>
+              <Fade in={true} key={index}>
                 <Paper
                   elevation={1}
                   sx={{

@@ -216,7 +216,7 @@ export default function PreviousSearchesPage() {
             {/* Search Cards */}
             <Stack spacing={3}>
               {searches.map((search, index) => (
-                <Fade in={true} key={search.id} timeout={300 + index * 100}>
+                <Fade in={true} key={search.id}>
                   <div>
                     <SearchSummaryCard
                       search={search}
