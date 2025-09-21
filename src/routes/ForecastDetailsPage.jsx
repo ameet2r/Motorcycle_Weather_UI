@@ -112,7 +112,11 @@ export default function ForecastDetailsPage() {
       if (period.start_time) {
         try {
           const startDate = new Date(period.start_time);
-          const dateKey = startDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+          // Use local date instead of UTC to avoid timezone shifts
+          const year = startDate.getFullYear();
+          const month = String(startDate.getMonth() + 1).padStart(2, '0');
+          const day = String(startDate.getDate()).padStart(2, '0');
+          const dateKey = `${year}-${month}-${day}`; // YYYY-MM-DD format in local time
           if (!mapping[dateKey]) {
             mapping[dateKey] = [];
           }

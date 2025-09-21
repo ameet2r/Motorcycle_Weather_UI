@@ -113,12 +113,17 @@ export function groupPeriodsByDay(periods) {
 
     try {
       const startDate = new Date(period.start_time);
-      const dateKey = startDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-      
+      // Use local date instead of UTC to avoid timezone shifts
+      const year = startDate.getFullYear();
+      const month = String(startDate.getMonth() + 1).padStart(2, '0');
+      const day = String(startDate.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${day}`; // YYYY-MM-DD format in local time
+      console.log(`Grouping period starting at ${period.start_time} under local date ${dateKey}`);
+
       if (!groupedPeriods[dateKey]) {
         groupedPeriods[dateKey] = [];
       }
-      
+
       groupedPeriods[dateKey].push(period);
     } catch (error) {
       console.warn('Invalid date format in period:', period.start_time);
