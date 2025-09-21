@@ -24,8 +24,9 @@ import ThermostatIcon from '@mui/icons-material/Thermostat';
 import AirIcon from '@mui/icons-material/Air';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import LaunchIcon from '@mui/icons-material/Launch';
+import ReplayIcon from '@mui/icons-material/Replay';
 
-export default function SearchSummaryCard({ search, onClick }) {
+export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
 
   const formatDateTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -58,57 +59,69 @@ export default function SearchSummaryCard({ search, onClick }) {
       }}
       className="professional-card"
     >
-      <CardActionArea
-        onClick={() => onClick(search.id)}
-        sx={{
-          borderRadius: 3,
-          '&:hover .launch-icon': {
-            opacity: 1,
-            transform: 'translateX(4px)'
-          }
-        }}
-      >
-        <CardContent sx={{ p: 3 }}>
-          <Stack spacing={3}>
-            {/* Header Section */}
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar
-                  sx={{
-                    bgcolor: 'primary.main',
-                    width: 48,
-                    height: 48
-                  }}
-                >
-                  <AccessTimeIcon />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    {formatDateTime(search.timestamp)}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                    <Typography variant="body2" color="text.secondary">
-                      {search.coordinates.length} location{search.coordinates.length > 1 ? 's' : ''}
-                    </Typography>
-                  </Box>
-                </Box>
+      {/* Header Section - Outside CardActionArea */}
+      <CardContent sx={{ p: 3, pb: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar
+              sx={{
+                bgcolor: 'primary.main',
+                width: 48,
+                height: 48
+              }}
+            >
+              <AccessTimeIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" component="h3" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {formatDateTime(search.timestamp)}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                <Typography variant="body2" color="text.secondary">
+                  {search.coordinates.length} location{search.coordinates.length > 1 ? 's' : ''}
+                </Typography>
               </Box>
-              
-              <Tooltip title="View Details">
-                <LaunchIcon
-                  className="launch-icon"
-                  sx={{
-                    opacity: 0,
-                    transition: 'all 0.2s ease-in-out',
-                    color: 'primary.main',
-                    fontSize: 20,
-                    cursor: 'pointer'
-                  }}
-                />
-              </Tooltip>
             </Box>
+          </Box>
 
+          <Stack direction="row" spacing={1}>
+            <Tooltip title="Redo Search">
+              <IconButton
+                onClick={() => onRedoSearch(search)}
+                sx={{
+                  color: 'secondary.main',
+                  '&:hover': {
+                    backgroundColor: 'secondary.main',
+                    color: 'secondary.contrastText'
+                  }
+                }}
+              >
+                <ReplayIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="View Details">
+              <IconButton
+                onClick={() => onClick(search.id)}
+                sx={{
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText'
+                  }
+                }}
+              >
+                <LaunchIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Box>
+      </CardContent>
+
+      {/* Main Content - Clickable Area */}
+      <CardActionArea onClick={() => onClick(search.id)}>
+        <CardContent sx={{ pt: 0 }}>
+          <Stack spacing={3}>
             <Divider />
 
             {/* Coordinates Overview */}
@@ -150,11 +163,11 @@ export default function SearchSummaryCard({ search, onClick }) {
                       color="secondary"
                     />
                   </Box>
-                  
+
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
                     {coord.summary.dayCount} day{coord.summary.dayCount > 1 ? 's' : ''} • {coord.summary.totalPeriods} forecast periods
                   </Typography>
-                  
+
                   {/* Daily Forecast Cards */}
                   <Stack spacing={1.5}>
                     {Object.entries(coord.summary.dailySummaries)
@@ -184,7 +197,7 @@ export default function SearchSummaryCard({ search, onClick }) {
                               sx={{ ml: 1, fontSize: '0.7rem', height: '20px' }}
                             />
                           </Typography>
-                          
+
                           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                             <Tooltip title="Temperature Range">
                               <Chip
@@ -231,7 +244,7 @@ export default function SearchSummaryCard({ search, onClick }) {
                           </Stack>
                         </Box>
                       ))}
-                    
+
                     {/* Show more indicator if there are more days */}
                     {Object.keys(coord.summary.dailySummaries).length > 3 && (
                       <Box sx={{ textAlign: 'center', pt: 1 }}>

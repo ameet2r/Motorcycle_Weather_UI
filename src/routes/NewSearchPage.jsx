@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { keyframes } from "@emotion/react";
 import {
   Typography,
@@ -40,6 +40,9 @@ export default function NewSearchPage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const initialCoordinates = location.state?.coordinates || [];
 
   async function fetchWeather(locations) {
     setLoading(true);
@@ -156,7 +159,7 @@ export default function NewSearchPage() {
         )}
 
         {/* Location Form */}
-        <LocationForm onSubmit={fetchWeather} />
+        <LocationForm onSubmit={fetchWeather} initialLocations={initialCoordinates} />
 
         {/* Loading Backdrop */}
         <Backdrop

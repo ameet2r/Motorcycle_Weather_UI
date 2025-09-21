@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   TextField,
   Button,
@@ -19,11 +19,26 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
 import InfoIcon from "@mui/icons-material/Info";
 
-export default function LocationForm({ onSubmit }) {
-  const [locations, setLocations] = useState([
-    { latitude: "", longitude: ""},
-  ]);
+export default function LocationForm({ onSubmit, initialLocations = [] }) {
+  const [locations, setLocations] = useState(
+    initialLocations.length > 0
+      ? initialLocations.map(coord => ({ latitude: coord.latitude.toString(), longitude: coord.longitude.toString() }))
+      : [{ latitude: "", longitude: "" }]
+  );
   const [errors, setErrors] = useState([]);
+
+  useEffect(() => {
+    if (initialLocations.length > 0) {
+      const formattedLocations = initialLocations.map(coord => ({
+        latitude: coord.latitude.toString(),
+        longitude: coord.longitude.toString()
+      }));
+      setLocations(formattedLocations);
+      
+      // We know this search passed validation before, so no need to rerun validation
+      setErrors(new Array(formattedLocations.length).fill({}));
+    }
+  }, [initialLocations]);
 
   // handle input change for a specific location
   const handleChange = (index, field, value) => {

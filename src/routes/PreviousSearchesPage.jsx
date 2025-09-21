@@ -59,6 +59,10 @@ export default function PreviousSearchesPage() {
     navigate('/');
   };
 
+  const handleRedoSearch = (search) => {
+    navigate('/', { state: { coordinates: search.coordinates } });
+  };
+
   if (loading) {
     return (
       <Box className="fade-in">
@@ -221,6 +225,7 @@ export default function PreviousSearchesPage() {
                     <SearchSummaryCard
                       search={search}
                       onClick={handleSearchClick}
+                      onRedoSearch={handleRedoSearch}
                     />
                   </div>
                 </Fade>
