@@ -118,7 +118,6 @@ export function groupPeriodsByDay(periods) {
       const month = String(startDate.getMonth() + 1).padStart(2, '0');
       const day = String(startDate.getDate()).padStart(2, '0');
       const dateKey = `${year}-${month}-${day}`; // YYYY-MM-DD format in local time
-      console.log(`Grouping period starting at ${period.start_time} under local date ${dateKey}`);
 
       if (!groupedPeriods[dateKey]) {
         groupedPeriods[dateKey] = [];
