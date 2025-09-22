@@ -1,0 +1,141 @@
+import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  getIdToken
+} from 'firebase/auth';
+import { auth } from '../utils/firebase';
+
+// Create the authentication context
+const AuthContext = createContext({});
+
+// Custom hook to use the auth context
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+// Authentication provider component
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Clear error helper
+  const clearError = () => setError(null);
+
+  // Login function
+  const login = async (email, password) => {
+    try {
+      setError(null);
+      setLoading(true);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      return result;
+    } catch (error) {
+      setError(getAuthErrorMessage(error));
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Register function
+  const register = async (email, password) => {
+    try {
+      setError(null);
+      setLoading(true);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      return result;
+    } catch (error) {
+      setError(getAuthErrorMessage(error));
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout function
+  const logout = async () => {
+    try {
+      setError(null);
+      await signOut(auth);
+    } catch (error) {
+      setError(getAuthErrorMessage(error));
+      throw error;
+    }
+  };
+
+  // Get current user's ID token
+  const getIdTokenForUser = async () => {
+    try {
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
+      const token = await getIdToken(user);
+      return token;
+    } catch (error) {
+      setError('Failed to get authentication token');
+      throw error;
+    }
+  };
+
+  // Listen for authentication state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Helper function to convert Firebase auth errors to user-friendly messages
+  const getAuthErrorMessage = (error) => {
+    switch (error.code) {
+      case 'auth/invalid-credential':
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+        return 'Invalid email or password. Please check your credentials and try again.';
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists. Please sign in instead.';
+      case 'auth/weak-password':
+        return 'Password should be at least 8 characters long.';
+      case 'auth/invalid-email':
+        return 'Please enter a valid email address.';
+      case 'auth/too-many-requests':
+        return 'Too many failed attempts. Please try again later.';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your connection and try again.';
+      case 'auth/user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      default:
+        return 'An unexpected error occurred. Please try again.';
+    }
+  };
+
+  // Context value
+  const value = {
+    user,
+    loading,
+    error,
+    setError,
+    login,
+    register,
+    logout,
+    getIdToken: getIdTokenForUser,
+    clearError
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export default AuthContext;

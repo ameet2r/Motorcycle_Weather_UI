@@ -15,6 +15,8 @@ import {
 import LocationForm from "../components/LocationForm";
 import { saveSearchToHistory, generateSearchId } from "../utils/localStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
+import { authenticatedPost, isAuthError } from "../utils/api";
+import { useAuth } from "../contexts/AuthContext";
 import CloudIcon from '@mui/icons-material/Cloud';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -41,6 +43,7 @@ export default function NewSearchPage() {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const initialCoordinates = location.state?.coordinates || [];
 
@@ -52,21 +55,12 @@ export default function NewSearchPage() {
     try {
       setLoadingStep('Validating coordinates...');
       setLoadingStep('Fetching weather data...');
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_API}/CoordinatesToWeather/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(locations),
-        });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch weather data (${response.status})`);
-      }
+      
+      // Use authenticated API call
+      const result = await authenticatedPost('/CoordinatesToWeather/', locations);
+      const map = result.coordinates_to_forecasts_map;
 
       setLoadingStep('Processing forecast data...');
-      const result = await response.json();
-      const map = result.coordinates_to_forecasts_map;
 
       // Transform the data for storage
       const coordinatesData = Object.entries(map).map(([key, forecastsForKey]) => {
@@ -105,7 +99,22 @@ export default function NewSearchPage() {
 
     } catch (err) {
       console.error("Error fetching weather:", err);
-      setError(err.message || 'An unexpected error occurred while fetching weather data');
+      
+      // Handle authentication errors
+      if (isAuthError(err)) {
+        setError('Your session has expired. Please log in again.');
+        // Logout and redirect to auth page
+        setTimeout(async () => {
+          try {
+            await logout();
+            navigate('/auth');
+          } catch (logoutError) {
+            console.error('Logout error:', logoutError);
+          }
+        }, 2000);
+      } else {
+        setError(err.message || 'An unexpected error occurred while fetching weather data');
+      }
     } finally {
       if (!success) {
         setLoading(false);
