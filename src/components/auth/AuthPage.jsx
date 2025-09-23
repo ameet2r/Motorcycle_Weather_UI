@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -9,7 +9,8 @@ import {
   Typography,
   Fade,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Alert
 } from '@mui/material';
 import {
   Login as LoginIcon,
@@ -51,6 +52,8 @@ export default function AuthPage({ onAuthSuccess }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
+  const location = useLocation();
+  const message = location.state?.message;
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -122,6 +125,25 @@ export default function AuthPage({ onAuthSuccess }) {
               Your trusted companion for weather-aware motorcycle journeys
             </Typography>
           </Box>
+
+          {/* Message Alert */}
+          {message && (
+            <Box sx={{ px: 4, pb: 2 }}>
+              <Fade in={true}>
+                <Alert
+                  severity="success"
+                  sx={{
+                    borderRadius: 2,
+                    '& .MuiAlert-message': { fontSize: '0.875rem' }
+                  }}
+                >
+                  <Typography variant="body2">
+                    {message}
+                  </Typography>
+                </Alert>
+              </Fade>
+            </Box>
+          )}
 
           {/* Tabs */}
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>

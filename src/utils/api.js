@@ -118,6 +118,29 @@ export const authenticatedGet = async (endpoint) => {
 };
 
 /**
+ * Makes an authenticated DELETE request
+ * @param {string} endpoint - API endpoint
+ * @returns {Promise<any>} - Parsed JSON response or empty for 204
+ */
+export const authenticatedDelete = async (endpoint) => {
+  const response = await authenticatedFetch(endpoint, {
+    method: 'DELETE'
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API request failed (${response.status}): ${errorText}`);
+  }
+
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return null;
+  }
+
+  return response.json();
+};
+
+/**
  * Checks if an error is an authentication error that requires re-login
  * @param {Error} error - The error to check
  * @returns {boolean} - True if it's an auth error requiring re-login

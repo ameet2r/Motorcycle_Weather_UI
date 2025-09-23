@@ -13,6 +13,13 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
 import ListItemIcon from '@mui/material/ListItemIcon';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 import { useState } from 'react';
 import NewSearchPage from "./routes/NewSearchPage";
 import PreviousSearchesPage from "./routes/PreviousSearchesPage";
@@ -21,11 +28,13 @@ import Footer from "./components/Footer";
 import AuthPage from "./components/auth/AuthPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { authenticatedDelete } from "./utils/api";
 import CloudIcon from '@mui/icons-material/Cloud';
 import SearchIcon from '@mui/icons-material/Search';
 import HistoryIcon from '@mui/icons-material/History';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 function NavigationBar() {
   const location = useLocation();
@@ -33,6 +42,9 @@ function NavigationBar() {
   const { user, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -49,6 +61,19 @@ function NavigationBar() {
       navigate('/auth');
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await authenticatedDelete('/user/account');
+      await logout();
+      setDeleteDialogOpen(false);
+      navigate('/auth', { state: { message: 'Your account has been successfully deleted.' } });
+    } catch (error) {
+      console.error('Delete account error:', error);
+      setDeleteDialogOpen(false);
+      setErrorMessage('Failed to delete account. Please try again later.');
     }
   };
 
@@ -231,9 +256,61 @@ function NavigationBar() {
                   </ListItemIcon>
                   Sign Out
                 </MenuItem>
+                <Divider />
+                <MenuItem onClick={() => setDeleteDialogOpen(true)} sx={{ color: 'error.main' }}>
+                  <ListItemIcon>
+                    <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
+                  </ListItemIcon>
+                  Delete Account
+                </MenuItem>
               </Menu>
             </>
           )}
+
+          {/* Delete Account Confirmation Dialog */}
+          <Dialog
+            open={deleteDialogOpen}
+            onClose={() => setDeleteDialogOpen(false)}
+            aria-labelledby="delete-account-dialog-title"
+            aria-describedby="delete-account-dialog-description"
+          >
+            <DialogTitle id="delete-account-dialog-title">
+              Delete Account
+            </DialogTitle>
+            <DialogContent>
+              <DialogContentText id="delete-account-dialog-description">
+                Are you sure you want to delete your account? This action is permanent.
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleDeleteAccount} color="error" variant="contained">
+                Delete Account
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Success/Error Snackbar */}
+          <Snackbar
+            open={!!successMessage || !!errorMessage}
+            autoHideDuration={6000}
+            onClose={() => {
+              setSuccessMessage('');
+              setErrorMessage('');
+            }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
+            <Alert
+              onClose={() => {
+                setSuccessMessage('');
+                setErrorMessage('');
+              }}
+              severity={successMessage ? 'success' : 'error'}
+              sx={{ width: '100%' }}
+            >
+              {successMessage || errorMessage}
+            </Alert>
+          </Snackbar>
         </Box>
       </Toolbar>
     </AppBar>
