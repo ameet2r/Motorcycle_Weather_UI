@@ -54,6 +54,7 @@ export default function AuthPage({ onAuthSuccess }) {
   const navigate = useNavigate();
   const location = useLocation();
   const message = location.state?.message;
+  const [showMessage, setShowMessage] = useState(!!message);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -127,11 +128,12 @@ export default function AuthPage({ onAuthSuccess }) {
           </Box>
 
           {/* Message Alert */}
-          {message && (
+          {message && showMessage && (
             <Box sx={{ px: 4, pb: 2 }}>
               <Fade in={true}>
                 <Alert
                   severity="success"
+                  onClose={() => setShowMessage(false)}
                   sx={{
                     borderRadius: 2,
                     '& .MuiAlert-message': { fontSize: '0.875rem' }
