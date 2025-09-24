@@ -4,7 +4,8 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  getIdToken
+  getIdToken,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 
@@ -53,6 +54,35 @@ export const AuthProvider = ({ children }) => {
       return result;
     } catch (error) {
       setError(getAuthErrorMessage(error));
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot password function
+  const forgotPassword = async (email) => {
+    try {
+      setError(null);
+      setLoading(true);
+      await sendPasswordResetEmail(auth, email);
+      return 'If an account with that email address exists, a password reset link has been sent. Please check your email.';
+    } catch (error) {
+      let errorMessage;
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No user found with this email address.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many reset requests. Please try again later.';
+          break;
+        default:
+          errorMessage = 'An error occurred while sending the reset email. Please try again.';
+      }
+      setError(errorMessage);
       throw error;
     } finally {
       setLoading(false);
@@ -127,6 +157,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    forgotPassword,
     getIdToken: getIdTokenForUser,
     clearError
   };

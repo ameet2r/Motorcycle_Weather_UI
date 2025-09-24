@@ -25,8 +25,11 @@ export default function LoginForm({ onSuccess }) {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [successMessage, setSuccessMessage] = useState(null);
 
-  const { login, error, setError, clearError } = useAuth();
+  const { login, forgotPassword, error, setError, clearError } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -76,21 +79,56 @@ export default function LoginForm({ onSuccess }) {
     setShowPassword(!showPassword);
   };
 
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!forgotEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    if (!isValidEmail(forgotEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
+    clearError();
+    setSuccessMessage(null);
+
+    try {
+      const message = await forgotPassword(forgotEmail);
+      setSuccessMessage(message);
+      setForgotEmail('');
+    } catch (error) {
+      // Error is already set in AuthContext
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setShowForgotPassword(false);
+    setForgotEmail('');
+    setSuccessMessage(null);
+    clearError();
+  };
+
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
-      <Typography variant="h4" component="h1" gutterBottom sx={{ 
-        textAlign: 'center', 
+    <Box component="form" onSubmit={showForgotPassword ? handleForgotSubmit : handleSubmit} sx={{ width: '100%' }}>
+      <Typography variant="h4" component="h1" gutterBottom sx={{
+        textAlign: 'center',
         fontWeight: 700,
         mb: 3
       }}>
-        Welcome Back
+        {showForgotPassword ? 'Reset Password' : 'Welcome Back'}
       </Typography>
-      
-      <Typography variant="body1" color="text.secondary" sx={{ 
-        textAlign: 'center', 
-        mb: 4 
+
+      <Typography variant="body1" color="text.secondary" sx={{
+        textAlign: 'center',
+        mb: 4
       }}>
-        Sign in to access your weather forecasts
+        {showForgotPassword ? 'Enter your email address and we\'ll send you a link to reset your password.' : 'Sign in to access your weather forecasts'}
       </Typography>
 
       {error && (
@@ -103,17 +141,27 @@ export default function LoginForm({ onSuccess }) {
         </Alert>
       )}
 
+      {successMessage && (
+        <Alert
+          severity="success"
+          sx={{ mb: 3, borderRadius: 2 }}
+          onClose={() => setSuccessMessage(null)}
+        >
+          {successMessage}
+        </Alert>
+      )}
+
       <TextField
         fullWidth
         label="Email Address"
         name="email"
         type="email"
-        value={formData.email}
-        onChange={handleChange}
+        value={showForgotPassword ? forgotEmail : formData.email}
+        onChange={showForgotPassword ? (e) => setForgotEmail(e.target.value) : handleChange}
         disabled={loading}
         required
         autoComplete="email"
-        sx={{ mb: 3 }}
+        sx={{ mb: showForgotPassword ? 4 : 3 }}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
@@ -121,11 +169,12 @@ export default function LoginForm({ onSuccess }) {
             </InputAdornment>
           ),
         }}
-        error={!!error && !formData.email}
-        helperText={error && !formData.email ? 'Email is required' : ''}
+        error={!!error && (showForgotPassword ? !forgotEmail : !formData.email)}
+        helperText={error && (showForgotPassword ? !forgotEmail : !formData.email) ? 'Email is required' : ''}
       />
 
-      <TextField
+      {!showForgotPassword && (
+        <TextField
         fullWidth
         label="Password"
         name="password"
@@ -158,6 +207,7 @@ export default function LoginForm({ onSuccess }) {
         error={!!error && !formData.password}
         helperText={error && !formData.password ? 'Password is required' : ''}
       />
+      )}
 
       <Button
         type="submit"
@@ -165,7 +215,7 @@ export default function LoginForm({ onSuccess }) {
         variant="contained"
         size="large"
         disabled={loading}
-        startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />}
+        startIcon={loading ? <CircularProgress size={20} /> : (showForgotPassword ? <EmailIcon /> : <LoginIcon />)}
         sx={{
           py: 1.5,
           borderRadius: 2,
@@ -185,8 +235,26 @@ export default function LoginForm({ onSuccess }) {
           }
         }}
       >
-        {loading ? 'Signing In...' : 'Sign In'}
+        {loading ? (showForgotPassword ? 'Sending...' : 'Signing In...') : (showForgotPassword ? 'Send Reset Email' : 'Sign In')}
       </Button>
+
+      {!showForgotPassword ? (
+        <Button
+          onClick={() => setShowForgotPassword(true)}
+          variant="text"
+          sx={{ mt: 2, textTransform: 'none' }}
+        >
+          Forgot Password?
+        </Button>
+      ) : (
+        <Button
+          onClick={handleBackToLogin}
+          variant="text"
+          sx={{ mt: 2, textTransform: 'none' }}
+        >
+          Back to Login
+        </Button>
+      )}
     </Box>
   );
 }
