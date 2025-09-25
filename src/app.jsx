@@ -91,21 +91,21 @@ function NavigationBar() {
             component={Link}
             to="/"
             sx={{
-              mr: 2,
+              mr: { xs: 1, sm: 2 },
               p: 1,
               '&:hover': {
                 backgroundColor: 'rgba(25, 118, 210, 0.08)'
               }
             }}
           >
-            <CloudIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+            <CloudIcon sx={{ fontSize: { xs: 24, sm: 32 }, color: 'primary.main' }} />
           </IconButton>
           <Box>
             <Typography
-              variant="h5"
               component={Link}
               to="/"
               sx={{
+                fontSize: { xs: '1.25rem', sm: '1.5rem' },
                 fontWeight: 700,
                 textDecoration: 'none',
                 color: 'inherit',
@@ -127,7 +127,7 @@ function NavigationBar() {
         </Box>
 
         {/* Navigation Buttons */}
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: { xs: 0.25, sm: 1 }, alignItems: 'center' }}>
           <Tooltip title="Create New Search">
             <Button
               color="inherit"
@@ -137,7 +137,7 @@ function NavigationBar() {
               variant={location.pathname === '/' ? 'outlined' : 'text'}
               sx={{
                 borderRadius: 2,
-                px: 3,
+                px: { xs: 0.5, sm: 3 },
                 fontWeight: 500,
                 textTransform: 'none',
                 '&:hover': {
@@ -160,7 +160,7 @@ function NavigationBar() {
               variant={location.pathname === '/previous-searches' ? 'outlined' : 'text'}
               sx={{
                 borderRadius: 2,
-                px: 3,
+                px: { xs: 0.5, sm: 3 },
                 fontWeight: 500,
                 textTransform: 'none',
                 '&:hover': {
@@ -182,7 +182,7 @@ function NavigationBar() {
                 <IconButton
                   onClick={handleMenuClick}
                   sx={{
-                    ml: 1,
+                    ml: { xs: 0, sm: 1 },
                     '&:hover': {
                       backgroundColor: 'rgba(25, 118, 210, 0.08)'
                     }
@@ -190,10 +190,10 @@ function NavigationBar() {
                 >
                   <Avatar
                     sx={{
-                      width: 32,
-                      height: 32,
+                      width: { xs: 28, sm: 32 },
+                      height: { xs: 28, sm: 32 },
                       bgcolor: 'primary.main',
-                      fontSize: '0.875rem',
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
                       fontWeight: 600
                     }}
                   >
@@ -212,7 +212,7 @@ function NavigationBar() {
                     overflow: 'visible',
                     filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                     mt: 1.5,
-                    minWidth: 200,
+                    minWidth: { xs: 160, sm: 200 },
                     '& .MuiAvatar-root': {
                       width: 32,
                       height: 32,
