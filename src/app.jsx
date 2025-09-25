@@ -26,6 +26,7 @@ import PreviousSearchesPage from "./routes/PreviousSearchesPage";
 import ForecastDetailsPage from "./routes/ForecastDetailsPage";
 import MembershipPage from "./routes/MembershipPage";
 import Footer from "./components/Footer";
+import ConnectivityGate from "./components/ConnectivityGate";
 import AuthPage from "./components/auth/AuthPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -327,7 +328,7 @@ function NavigationBar() {
 }
 
 function ProtectedApp() {
-  const { loading } = useUser();
+  const { loading, membershipTier } = useUser();
 
   if (loading) {
     return (
@@ -350,27 +351,29 @@ function ProtectedApp() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <NavigationBar />
+    <ConnectivityGate membershipTier={membershipTier}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <NavigationBar />
 
-      <Container
-        maxWidth="lg"
-        sx={{
-          flex: 1,
-          py: { xs: 3, sm: 4 },
-          px: { xs: 2, sm: 3 }
-        }}
-        className="fade-in"
-      >
-        <Routes>
-          <Route path="/" element={<NewSearchPage />} />
-          <Route path="/previous-searches" element={<PreviousSearchesPage />} />
-          <Route path="/forecast/:searchId" element={<ForecastDetailsPage />} />
-          <Route path="/membership" element={<MembershipPage />} />
-        </Routes>
-      </Container>
-      <Footer />
-    </Box>
+        <Container
+          maxWidth="lg"
+          sx={{
+            flex: 1,
+            py: { xs: 3, sm: 4 },
+            px: { xs: 2, sm: 3 }
+          }}
+          className="fade-in"
+        >
+          <Routes>
+            <Route path="/" element={<NewSearchPage />} />
+            <Route path="/previous-searches" element={<PreviousSearchesPage />} />
+            <Route path="/forecast/:searchId" element={<ForecastDetailsPage />} />
+            <Route path="/membership" element={<MembershipPage />} />
+          </Routes>
+        </Container>
+        <Footer />
+      </Box>
+    </ConnectivityGate>
   );
 }
 
