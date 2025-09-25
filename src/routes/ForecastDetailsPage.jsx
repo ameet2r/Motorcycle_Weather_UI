@@ -456,7 +456,7 @@ export default function ForecastDetailsPage() {
                             >
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
                                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                  {period.name || `Period ${periodIndex + 1}`}
+                                  {period.name || `${period.start_time}`}
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 1, ml: 'auto', mr: 2 }}>
                                   <Chip
