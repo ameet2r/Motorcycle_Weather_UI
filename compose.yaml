@@ -9,13 +9,13 @@ services:
       - ui_node_modules:/app/node_modules
     ports:
       - "5173:5173"
-    container_name: dojo-frontend-dev
+    container_name: frontend-dev
 
   frontend-prod:
     build: .
     ports:
       - "3000:80"
-    container_name: dojo-frontend-prod
+    container_name: frontend-prod
 
 volumes:
   ui_node_modules:

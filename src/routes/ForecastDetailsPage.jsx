@@ -46,8 +46,7 @@ export default function ForecastDetailsPage() {
   const [search, setSearch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedPeriods, setExpandedPeriods] = useState(new Set());
-  const periodRefs = useRef({});
+  const [expandedDays, setExpandedDays] = useState(new Set());
 
   useEffect(() => {
     loadSearchDetails();
@@ -129,48 +128,14 @@ export default function ForecastDetailsPage() {
     return mapping;
   };
 
-  const handleDailySummaryClick = (selectedDate, coordIndex) => {
-    const coord = search.coordinates[coordIndex];
-    if (!coord.periods) return;
-
-    const periodMapping = createPeriodToDateMapping(coord.periods);
-    const periodIndices = periodMapping[selectedDate];
-    
-    if (!periodIndices || periodIndices.length === 0) return;
-
-    // Expand all periods for the selected day
-    const newExpandedPeriods = new Set(expandedPeriods);
-    periodIndices.forEach(periodIndex => {
-      const periodKey = `${coordIndex}-${periodIndex}`;
-      newExpandedPeriods.add(periodKey);
-    });
-    setExpandedPeriods(newExpandedPeriods);
-
-    // Scroll to the first period of the day
-    const firstPeriodIndex = periodIndices[0];
-    const firstPeriodKey = `${coordIndex}-${firstPeriodIndex}`;
-    const periodElement = periodRefs.current[firstPeriodKey];
-    
-    if (periodElement) {
-      periodElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-        inline: 'nearest'
-      });
-    }
-  };
-
-  const handleAccordionChange = (coordIndex, periodIndex) => (event, isExpanded) => {
-    const periodKey = `${coordIndex}-${periodIndex}`;
-    const newExpandedPeriods = new Set(expandedPeriods);
-    
-    if (isExpanded) {
-      newExpandedPeriods.add(periodKey);
+  const handleDayClick = (selectedDate, coordIndex) => {
+    const newExpandedDays = new Set(expandedDays);
+    if (newExpandedDays.has(selectedDate)) {
+      newExpandedDays.delete(selectedDate);
     } else {
-      newExpandedPeriods.delete(periodKey);
+      newExpandedDays.add(selectedDate);
     }
-    
-    setExpandedPeriods(newExpandedPeriods);
+    setExpandedDays(newExpandedDays);
   };
 
   if (loading) {
@@ -350,203 +315,123 @@ export default function ForecastDetailsPage() {
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
                       Daily Weather Summary
                     </Typography>
-                    <Grid container spacing={2}>
+                    <Stack spacing={2}>
                       {Object.entries(coord.summary.dailySummaries)
                         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-                        .map(([date, daySummary]) => (
-                          <Grid size={{ xs: 12, md: 6, lg: 4 }} key={date}>
-                            <Paper
-                              onClick={() => handleDailySummaryClick(date, coordIndex)}
-                              sx={{
-                                p: 2.5,
-                                borderRadius: 2,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease-in-out',
-                                '&:hover': {
-                                  borderColor: 'primary.main',
-                                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.15)',
-                                  transform: 'translateY(-2px)'
-                                },
-                                '&:active': {
-                                  transform: 'translateY(0px)',
-                                  boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
-                                }
-                              }}
-                            >
-                              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                                {formatDateWithRelativeDay(date)}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                                {daySummary.periodCount} forecast periods
-                              </Typography>
-                              
-                              <Stack spacing={1.5}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <ThermostatIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                                  <Typography variant="body2">
-                                    <strong>Temperature:</strong> {formatTemperatureRange(daySummary.tempRange)}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <AirIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
-                                  <Typography variant="body2">
-                                    <strong>Wind:</strong> {formatWindRange(daySummary.windRange)}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <WaterDropIcon sx={{ fontSize: 18, color: 'info.main' }} />
-                                  <Typography variant="body2">
-                                    <strong>Precipitation:</strong> {formatPrecipitationRange(daySummary.precipRange)}
-                                  </Typography>
-                                </Box>
-                              </Stack>
-                            </Paper>
-                          </Grid>
-                        ))}
-                    </Grid>
-                  </Box>
-
-                  <Divider />
-
-                  {/* Detailed Periods */}
-                  <Box sx={{ p: 3 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                      Detailed Forecast Periods
-                    </Typography>
-                    
-                    {coord.periods && coord.periods.length > 0 ? (
-                      <Stack spacing={2}>
-                        {coord.periods.map((period, periodIndex) => {
-                          const periodKey = `${coordIndex}-${periodIndex}`;
-                          const isExpanded = expandedPeriods.has(periodKey);
-                          
+                        .map(([date, daySummary]) => {
+                          const periodMapping = createPeriodToDateMapping(coord.periods);
+                          const periodIndices = periodMapping[date];
+                          const periods = periodIndices ? periodIndices.map(i => coord.periods[i]) : [];
                           return (
                             <Accordion
-                              key={periodIndex}
-                              ref={(el) => {
-                                if (el) {
-                                  periodRefs.current[periodKey] = el;
-                                }
-                              }}
-                              expanded={isExpanded}
-                              onChange={handleAccordionChange(coordIndex, periodIndex)}
+                              key={date}
+                              expanded={expandedDays.has(date)}
+                              onChange={() => handleDayClick(date, coordIndex)}
                               sx={{
-                                borderRadius: '8px !important',
+                                borderRadius: 2,
                                 border: '1px solid',
                                 borderColor: 'divider',
                                 '&:before': { display: 'none' },
                                 '&.Mui-expanded': {
                                   borderColor: 'primary.main',
                                   boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)'
-                                },
-                                transition: 'all 0.2s ease-in-out'
-                              }}
-                            >
-                            <AccordionSummary
-                              expandIcon={<ExpandMoreIcon />}
-                              sx={{
-                                borderRadius: 1,
-                                '&.Mui-expanded': {
-                                  borderBottomLeftRadius: 0,
-                                  borderBottomRightRadius: 0
                                 }
                               }}
                             >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                  {period.name || `${period.start_time}`}
-                                </Typography>
-                                <Box sx={{ display: 'flex', gap: 1, ml: 'auto', mr: 2 }}>
-                                  <Chip
-                                    label={`${period.temperature}°F`}
-                                    size="small"
-                                    color="primary"
-                                    variant="outlined"
-                                  />
-                                  <Chip
-                                    label={`${period.probability_of_precip ?? 0}%`}
-                                    size="small"
-                                    color="info"
-                                    variant="outlined"
-                                  />
+                              <AccordionSummary
+                                expandIcon={<ExpandMoreIcon />}
+                                onClick={() => handleDayClick(date, coordIndex)}
+                                sx={{
+                                  borderRadius: 2,
+                                  '&.Mui-expanded': {
+                                    borderBottomLeftRadius: 0,
+                                    borderBottomRightRadius: 0
+                                  },
+                                  cursor: 'pointer',
+                                  '&:hover': {
+                                    backgroundColor: 'action.hover'
+                                  }
+                                }}
+                              >
+                                <Box sx={{ width: '100%' }}>
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                                    {formatDateWithRelativeDay(date)}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                    {daySummary.periodCount} forecast periods
+                                  </Typography>
+
+                                  <Stack spacing={1.5}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <ThermostatIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                                      <Typography variant="body2">
+                                        <strong>Temperature:</strong> {formatTemperatureRange(daySummary.tempRange)}
+                                      </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <AirIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
+                                      <Typography variant="body2">
+                                        <strong>Wind:</strong> {formatWindRange(daySummary.windRange)}
+                                      </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <WaterDropIcon sx={{ fontSize: 18, color: 'info.main' }} />
+                                      <Typography variant="body2">
+                                        <strong>Precipitation:</strong> {formatPrecipitationRange(daySummary.precipRange)}
+                                      </Typography>
+                                    </Box>
+                                  </Stack>
                                 </Box>
-                              </Box>
-                            </AccordionSummary>
-                            <AccordionDetails sx={{ pt: 0 }}>
-                              <Grid container spacing={3}>
-                                <Grid size={{ xs: 12, md: 6 }}>
-                                  <Stack spacing={2}>
-                                    <Box>
-                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                        Time Period
-                                      </Typography>
-                                      <Typography variant="body2">
-                                        {formatPeriodTime(period.start_time, period.end_time)}
-                                      </Typography>
-                                    </Box>
-                                    <Box>
-                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                        Temperature
-                                      </Typography>
-                                      <Typography variant="body2">
-                                        {period.temperature}°F
-                                      </Typography>
-                                    </Box>
-                                    <Box>
-                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                        Wind Conditions
-                                      </Typography>
-                                      <Typography variant="body2">
-                                        {period.wind_direction} {period.wind_speed}
-                                      </Typography>
-                                    </Box>
-                                    <Box>
-                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                        Precipitation Chance
-                                      </Typography>
-                                      <Typography variant="body2">
-                                        {period.probability_of_precip ?? 0}%
-                                      </Typography>
-                                    </Box>
-                                  </Stack>
+                              </AccordionSummary>
+                              <AccordionDetails sx={{ pt: 0 }}>
+                                <Grid container spacing={2}>
+                                  {periods.map((period, idx) => (
+                                    <Grid key={idx} size={{ xs: 12, sm: 6, md: 4 }}>
+                                      <Paper
+                                        sx={{
+                                          p: 2,
+                                          borderRadius: 2,
+                                          border: '1px solid',
+                                          borderColor: 'divider',
+                                          backgroundColor: 'background.paper'
+                                        }}
+                                      >
+                                        <Stack spacing={1}>
+                                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                            {formatPeriodTime(period.start_time, period.end_time)}
+                                          </Typography>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <ThermostatIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                                            <Typography variant="body2">{period.temperature}°F</Typography>
+                                          </Box>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <AirIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
+                                            <Typography variant="body2">{period.wind_direction} {period.wind_speed}</Typography>
+                                          </Box>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <WaterDropIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                                            <Typography variant="body2">{period.probability_of_precip ?? 0}% chance</Typography>
+                                          </Box>
+                                          {period.short_forecast && (
+                                            <Typography variant="body2" color="text.secondary">
+                                              {period.short_forecast}
+                                            </Typography>
+                                          )}
+                                          {period.detailed_forecast && (
+                                            <Typography variant="body2" color="text.secondary">
+                                              {period.detailed_forecast}
+                                            </Typography>
+                                          )}
+                                        </Stack>
+                                      </Paper>
+                                    </Grid>
+                                  ))}
                                 </Grid>
-                                <Grid size={{ xs: 12, md: 6 }}>
-                                  <Stack spacing={2}>
-                                    <Box>
-                                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                        Short Forecast
-                                      </Typography>
-                                      <Typography variant="body2">
-                                        {period.short_forecast}
-                                      </Typography>
-                                    </Box>
-                                    {period.detailed_forecast && (
-                                      <Box>
-                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                          Detailed Forecast
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {period.detailed_forecast}
-                                        </Typography>
-                                      </Box>
-                                    )}
-                                  </Stack>
-                                </Grid>
-                              </Grid>
-                            </AccordionDetails>
-                          </Accordion>
+                              </AccordionDetails>
+                            </Accordion>
                           );
                         })}
-                      </Stack>
-                    ) : (
-                      <Alert severity="info" sx={{ borderRadius: 2 }}>
-                        <Typography variant="body2">
-                          No detailed forecast periods available for this coordinate.
-                        </Typography>
-                      </Alert>
-                    )}
+                    </Stack>
                   </Box>
                 </CardContent>
               </Card>
