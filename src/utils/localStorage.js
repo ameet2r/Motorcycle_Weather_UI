@@ -30,22 +30,24 @@ export function getSearchById(searchId) {
 /**
  * Save a new search to localStorage
  * @param {Object} searchData - The search data to save
+ * @param {string} membershipTier - The user's membership tier ('free' or other)
  * @returns {boolean} Success status
  */
-export function saveSearchToHistory(searchData) {
+export function saveSearchToHistory(searchData, membershipTier = 'free') {
   try {
     const searches = getSearchHistory();
-    
+
     // Add the new search at the beginning (most recent first)
     searches.unshift(searchData);
-    
-    // Keep only the last 50 searches to prevent localStorage bloat
-    const trimmedSearches = searches.slice(0, 50);
-    
+
+    // Limit based on membership tier
+    const maxSearches = membershipTier === 'free' ? 3 : 50;
+    const trimmedSearches = searches.slice(0, maxSearches);
+
     const dataToSave = {
       searches: trimmedSearches
     };
-    
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     return true;
   } catch (error) {

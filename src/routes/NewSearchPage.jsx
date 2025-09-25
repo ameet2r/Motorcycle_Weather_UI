@@ -17,6 +17,7 @@ import { saveSearchToHistory, generateSearchId } from "../utils/localStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
 import { authenticatedPost, isAuthError } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
+import { useUser } from "../contexts/UserContext";
 import CloudIcon from '@mui/icons-material/Cloud';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -44,6 +45,7 @@ export default function NewSearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
+  const { membershipTier } = useUser();
 
   const initialCoordinates = location.state?.coordinates || [];
 
@@ -87,7 +89,7 @@ export default function NewSearchPage() {
       };
 
       // Save to localStorage
-      const saved = saveSearchToHistory(searchData);
+      const saved = saveSearchToHistory(searchData, membershipTier);
       
       if (saved) {
         setLoadingStep('Complete!');
