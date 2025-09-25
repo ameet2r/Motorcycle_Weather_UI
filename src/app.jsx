@@ -24,10 +24,12 @@ import { useState } from 'react';
 import NewSearchPage from "./routes/NewSearchPage";
 import PreviousSearchesPage from "./routes/PreviousSearchesPage";
 import ForecastDetailsPage from "./routes/ForecastDetailsPage";
+import MembershipPage from "./routes/MembershipPage";
 import Footer from "./components/Footer";
 import AuthPage from "./components/auth/AuthPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { UserProvider, useUser } from "./contexts/UserContext";
 import { authenticatedDelete } from "./utils/api";
 import CloudIcon from '@mui/icons-material/Cloud';
 import SearchIcon from '@mui/icons-material/Search';
@@ -250,6 +252,13 @@ function NavigationBar() {
                   </Box>
                 </MenuItem>
                 <Divider />
+                <MenuItem onClick={() => navigate('/membership')}>
+                  <ListItemIcon>
+                    <AccountCircleIcon fontSize="small" />
+                  </ListItemIcon>
+                  Manage Membership
+                </MenuItem>
+                <Divider />
                 <MenuItem onClick={handleLogout}>
                   <ListItemIcon>
                     <LogoutIcon fontSize="small" />
@@ -318,10 +327,32 @@ function NavigationBar() {
 }
 
 function ProtectedApp() {
+  const { loading } = useUser();
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          gap: 2
+        }}
+      >
+        <CloudIcon sx={{ fontSize: 64, color: 'primary.main' }} />
+        <Typography variant="h6" color="text.secondary">
+          Loading user profile...
+        </Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <NavigationBar />
-      
+
       <Container
         maxWidth="lg"
         sx={{
@@ -335,6 +366,7 @@ function ProtectedApp() {
           <Route path="/" element={<NewSearchPage />} />
           <Route path="/previous-searches" element={<PreviousSearchesPage />} />
           <Route path="/forecast/:searchId" element={<ForecastDetailsPage />} />
+          <Route path="/membership" element={<MembershipPage />} />
         </Routes>
       </Container>
       <Footer />
@@ -382,7 +414,9 @@ function AppContent() {
   // Show protected app if authenticated
   return (
     <ProtectedRoute>
-      <ProtectedApp />
+      <UserProvider>
+        <ProtectedApp />
+      </UserProvider>
     </ProtectedRoute>
   );
 }
