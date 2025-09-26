@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
+import EmailIcon from '@mui/icons-material/Email';
 
 const MembershipPage = () => {
   const { userProfile, membershipTier } = useUser();
@@ -125,6 +126,15 @@ const MembershipPage = () => {
             sx={{ mt: 2 }}
           >
             Upgrade Membership (Coming Soon)
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<EmailIcon />}
+            component="a"
+            href={`mailto:${import.meta.env.VITE_CONTACT_EMAIL}`}
+            sx={{ mt: 2, ml: 2 }}
+          >
+            Contact Us
           </Button>
         </CardContent>
       </Card>
