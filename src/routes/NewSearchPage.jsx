@@ -73,7 +73,7 @@ export default function NewSearchPage() {
           key,
           latitude: key.split(':')[0],
           longitude: key.split(':')[1],
-          elevation: forecast.elevation,
+          elevation: forecast.elevation ? forecast.elevation : "",
           periods: forecast.periods,
           summary: generateCoordinateSummary(forecast)
         };
