@@ -45,7 +45,7 @@ const ConnectivityGate = ({ membershipTier, children }) => {
       // Start 30-second grace period before showing overlay
       const timer = setTimeout(() => {
         setShowOverlay(true);
-      }, 30000);
+      }, 300000);
       setGraceTimer(timer);
     } else {
       // Online, hide overlay and clear any pending timer

@@ -26,7 +26,7 @@ export const useOnlineStatus = () => {
     const pingInterval = setInterval(async () => {
       try {
         // Ping the backend root endpoint to confirm actual connectivity
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_API}/`, { method: 'GET' });
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_API}/ping`, { method: 'GET' });
         // If response is ok, we're online
         setIsOnline(response.ok);
       } catch (error) {
@@ -34,7 +34,7 @@ export const useOnlineStatus = () => {
         console.warn('Connectivity ping failed:', error.message);
         setIsOnline(false);
       }
-    }, 30000);
+    }, 300000);
 
     // Cleanup
     return () => {
