@@ -13,6 +13,7 @@ import {
   Backdrop,
 } from "@mui/material";
 import LocationForm from "../components/LocationForm";
+import AdBanner from "../components/AdBanner";
 import { saveSearchToHistory, generateSearchId } from "../utils/localStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
 import { authenticatedPost, isAuthError } from "../utils/api";
@@ -138,6 +139,10 @@ export default function NewSearchPage() {
           </Typography>
         </Box>
 
+        <Stack>
+          <AdBanner adSlot="new-search-header-banner" />
+        </Stack>
+
         {/* Error Alert */}
         {error && (
           <Fade in={true}>
@@ -225,6 +230,9 @@ export default function NewSearchPage() {
             </Box>
           </Paper>
         </Backdrop>
+        <Stack>
+          <AdBanner adSlot="new-search-footer-banner" />
+        </Stack>
       </Stack>
     </Box>
   );

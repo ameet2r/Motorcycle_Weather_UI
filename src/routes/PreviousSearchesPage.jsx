@@ -18,6 +18,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import InfoIcon from "@mui/icons-material/Info";
 import { getSearchHistory, clearSearchHistory } from "../utils/localStorage";
 import SearchSummaryCard from "../components/SearchSummaryCard";
+import AdBanner from "../components/AdBanner";
 
 export default function PreviousSearchesPage() {
   const [searches, setSearches] = useState([]);
@@ -114,6 +115,11 @@ export default function PreviousSearchesPage() {
             Review your previous weather searches and access detailed forecast information
           </Typography>
         </Box>
+
+        <Stack>
+          <AdBanner adSlot="previous-searches-header-banner" />
+        </Stack>
+
 
         {/* Action Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -227,12 +233,21 @@ export default function PreviousSearchesPage() {
                       onClick={handleSearchClick}
                       onRedoSearch={handleRedoSearch}
                     />
+                    {index % 2 === 1 && index < searches.length - 1 && (
+                      <AdBanner
+                        adSlot="previous-searches-inline-banner"
+                      />
+                    )}
                   </div>
                 </Fade>
               ))}
             </Stack>
           </Stack>
         )}
+
+        <Stack>
+          <AdBanner adSlot="previous-searches-footer-banner" />
+        </Stack>
 
         {/* Info Alert */}
         {searches.length > 0 && (

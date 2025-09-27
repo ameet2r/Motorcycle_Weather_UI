@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Typography,
@@ -33,6 +33,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import HeightIcon from "@mui/icons-material/Height";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import { getSearchById } from "../utils/localStorage";
+import AdBanner from "../components/AdBanner";
 import {
   formatTemperatureRange,
   formatWindRange,
@@ -247,6 +248,10 @@ export default function ForecastDetailsPage() {
           />
         </Box>
 
+        <Stack>
+          <AdBanner adSlot="forecast-details-header-banner" />
+        </Stack>
+
         {/* Location Forecasts */}
         <Stack spacing={4}>
           {search.coordinates.map((coord, coordIndex) => (
@@ -323,21 +328,21 @@ export default function ForecastDetailsPage() {
                           const periodIndices = periodMapping[date];
                           const periods = periodIndices ? periodIndices.map(i => coord.periods[i]) : [];
                           return (
-                            <Accordion
+                              <Accordion
                               key={date}
-                              expanded={expandedDays.has(date)}
-                              onChange={() => handleDayClick(date, coordIndex)}
-                              sx={{
-                                borderRadius: 2,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                '&:before': { display: 'none' },
-                                '&.Mui-expanded': {
-                                  borderColor: 'primary.main',
-                                  boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)'
-                                }
-                              }}
-                            >
+                                expanded={expandedDays.has(date)}
+                                onChange={() => handleDayClick(date, coordIndex)}
+                                sx={{
+                                  borderRadius: 2,
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  '&:before': { display: 'none' },
+                                  '&.Mui-expanded': {
+                                    borderColor: 'primary.main',
+                                    boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)'
+                                  }
+                                }}
+                              >
                               <AccordionSummary
                                 expandIcon={<ExpandMoreIcon />}
                                 onClick={() => handleDayClick(date, coordIndex)}
@@ -429,8 +434,8 @@ export default function ForecastDetailsPage() {
                                 </Grid>
                               </AccordionDetails>
                             </Accordion>
-                          );
-                        })}
+                        );
+                      })}
                     </Stack>
                   </Box>
                 </CardContent>
@@ -438,6 +443,9 @@ export default function ForecastDetailsPage() {
             </Fade>
           ))}
         </Stack>
+      </Stack>
+      <Stack>
+        <AdBanner adSlot="forecast-details-footer-banner" />
       </Stack>
     </Box>
   );
