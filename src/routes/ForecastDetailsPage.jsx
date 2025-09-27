@@ -400,23 +400,41 @@ export default function ForecastDetailsPage() {
                                           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                                             {formatPeriodTime(period.start_time, period.end_time)}
                                           </Typography>
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <ThermostatIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                                            <Typography variant="body2">{period.temperature}°F</Typography>
+                                          <Box sx={{ display: 'flex', gap: 2 }}>
+                                            <Stack spacing={0.5}>
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <ThermostatIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                                                <Typography variant="body2">{period.temperature}°F</Typography>
+                                              </Box>
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <AirIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
+                                                <Typography variant="body2">{period.wind_direction} {period.wind_speed}</Typography>
+                                              </Box>
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <WaterDropIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                                                <Typography variant="body2">{period.probability_of_precip ?? 0}% chance</Typography>
+                                              </Box>
+                                            </Stack>
+                                            <Stack spacing={1} sx={{ alignItems: 'center' }}>
+                                              {period.short_forecast && (
+                                                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                                                  {period.short_forecast}
+                                                </Typography>
+                                              )}
+                                              {period.icon && (
+                                                <img
+                                                  src={period.icon}
+                                                  alt={`${period.short_forecast} weather icon`  || "weather icon"}
+                                                  style={{
+                                                    width: '48px',
+                                                    height: '48px',
+                                                    borderRadius: '8px',
+                                                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                                  }}
+                                                />
+                                              )}
+                                            </Stack>
                                           </Box>
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <AirIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
-                                            <Typography variant="body2">{period.wind_direction} {period.wind_speed}</Typography>
-                                          </Box>
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <WaterDropIcon sx={{ fontSize: 16, color: 'info.main' }} />
-                                            <Typography variant="body2">{period.probability_of_precip ?? 0}% chance</Typography>
-                                          </Box>
-                                          {period.short_forecast && (
-                                            <Typography variant="body2" color="text.secondary">
-                                              {period.short_forecast}
-                                            </Typography>
-                                          )}
                                           {period.detailed_forecast && (
                                             <Typography variant="body2" color="text.secondary">
                                               {period.detailed_forecast}
