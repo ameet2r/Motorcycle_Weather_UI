@@ -12,6 +12,7 @@ import {
   Fade,
   Backdrop,
 } from "@mui/material";
+import { LoadScript } from "@react-google-maps/api";
 import LocationForm from "../components/LocationForm";
 import { saveSearchToHistory, generateSearchId } from "../utils/localStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
@@ -64,15 +65,23 @@ export default function NewSearchPage() {
 
       setLoadingStep('Processing forecast data...');
 
+      // Create address mapping from input locations
+      const addressMap = {};
+      locations.coordinates.forEach(coord => {
+        const key = `${coord.latLng.latitude}:${coord.latLng.longitude}`;
+        addressMap[key] = coord.address || "";
+      });
+
       // Transform the data for storage
       const coordinatesData = Object.entries(map).map(([key, forecastsForKey]) => {
         // Each coordinate can have multiple forecasts, but we'll take the first one
         const forecast = forecastsForKey[0];
-        
+
         return {
           key,
           latitude: key.split(':')[0],
           longitude: key.split(':')[1],
+          address: addressMap[key] || "",
           elevation: forecast.elevation ? forecast.elevation : "",
           periods: forecast.periods,
           summary: generateCoordinateSummary(forecast)
@@ -170,7 +179,12 @@ export default function NewSearchPage() {
         )}
 
         {/* Location Form */}
-        <LocationForm onSubmit={fetchWeather} initialLocations={initialCoordinates} />
+        <LoadScript
+          googleMapsApiKey={import.meta.env.VITE_GOOGLE_PLACES_API_KEY}
+          libraries={['places']}
+        >
+          <LocationForm onSubmit={fetchWeather} initialLocations={initialCoordinates} />
+        </LoadScript>
 
         {/* Loading Backdrop */}
         <Backdrop

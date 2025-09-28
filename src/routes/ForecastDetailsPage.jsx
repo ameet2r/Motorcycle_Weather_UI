@@ -283,7 +283,7 @@ export default function ForecastDetailsPage() {
                       </Grid>
                       <Grid size="grow">
                         <Typography variant="h5" sx={{ fontWeight: 600, mb: 1, fontFamily: 'monospace' }}>
-                          {coord.latitude}, {coord.longitude}
+                          {coord.address ? `${coord.address} (${coord.latitude}, ${coord.longitude})` : `${coord.latitude}, ${coord.longitude}`}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                           <Chip
