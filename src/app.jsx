@@ -426,13 +426,6 @@ function AppContent() {
 }
 
 export default function App() {
-  // Debug logging for API key and environment
-  console.log('Environment Mode:', import.meta.env.MODE);
-  console.log('Current Domain:', window.location.hostname);
-  console.log('Google Maps API Key:', import.meta.env.VITE_GOOGLE_PLACES_API_KEY);
-  console.log('API Key Length:', import.meta.env.VITE_GOOGLE_PLACES_API_KEY?.length);
-  console.log('Backend API:', import.meta.env.VITE_BACKEND_API);
-  
   return (
     <LoadScript
       googleMapsApiKey={import.meta.env.VITE_GOOGLE_PLACES_API_KEY}
