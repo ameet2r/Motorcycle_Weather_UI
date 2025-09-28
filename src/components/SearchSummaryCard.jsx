@@ -40,7 +40,12 @@ export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
   };
 
   const formatCoordinates = (coordinates) => {
-    return coordinates.map(coord => `${coord.latitude}, ${coord.longitude}`).join(' • ');
+    return coordinates.map(coord => {
+      if (coord.address) {
+        return `${coord.address} (${coord.latitude}, ${coord.longitude})`;
+      }
+      return `(${coord.latitude}, ${coord.longitude})`;
+    }).join(' • ');
   };
 
   return (
@@ -154,7 +159,7 @@ export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
                   {/* Location Header */}
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
-                      {coord.latitude}, {coord.longitude}
+                      {coord.address ? `${coord.address} (${coord.latitude}, ${coord.longitude})` : `${coord.latitude}, ${coord.longitude}`}
                     </Typography>
                     <Chip
                       label={`${coord.elevation} ft`}

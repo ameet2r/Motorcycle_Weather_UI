@@ -12,7 +12,13 @@ import {
   Alert,
   Divider,
   Chip,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  FormControl,
+  FormLabel,
 } from "@mui/material";
+import AddressAutocomplete from './AddressAutocomplete';
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
@@ -22,8 +28,8 @@ import InfoIcon from "@mui/icons-material/Info";
 export default function LocationForm({ onSubmit, initialLocations = [] }) {
   const [locations, setLocations] = useState(
     initialLocations.length > 0
-      ? initialLocations.map(coord => ({ latitude: coord.latitude.toString(), longitude: coord.longitude.toString() }))
-      : [{ latitude: "", longitude: "" }]
+      ? initialLocations.map(coord => ({ latitude: coord.latitude.toString(), longitude: coord.longitude.toString(), address: "", inputType: "coordinates" }))
+      : [{ latitude: "", longitude: "", address: "", inputType: "coordinates" }]
   );
   const [errors, setErrors] = useState([]);
 
@@ -31,10 +37,12 @@ export default function LocationForm({ onSubmit, initialLocations = [] }) {
     if (initialLocations.length > 0) {
       const formattedLocations = initialLocations.map(coord => ({
         latitude: coord.latitude.toString(),
-        longitude: coord.longitude.toString()
+        longitude: coord.longitude.toString(),
+        address: "",
+        inputType: "coordinates"
       }));
       setLocations(formattedLocations);
-      
+
       // We know this search passed validation before, so no need to rerun validation
       setErrors(new Array(formattedLocations.length).fill({}));
     }
@@ -46,14 +54,16 @@ export default function LocationForm({ onSubmit, initialLocations = [] }) {
     newLocations[index][field] = value;
     setLocations(newLocations);
 
-    // Validate location and longitude values
-    const newErrors = newLocations.map(validateLocation);
-    setErrors(newErrors);
+    // Validate location and longitude values only if field is latitude or longitude and inputType is coordinates
+    if ((field === 'latitude' || field === 'longitude') && newLocations[index].inputType === 'coordinates') {
+      const newErrors = newLocations.map(validateLocation);
+      setErrors(newErrors);
+    }
   };
 
   // add a new empty location
   const addLocation = () => {
-    setLocations([...locations, { latitude: "", longitude: ""}]);
+    setLocations([...locations, { latitude: "", longitude: "", address: "", inputType: "coordinates"}]);
     setErrors([...errors, {}]);
   };
 
@@ -121,7 +131,17 @@ const validateLocation = (location) => {
     e.preventDefault();
 
     // Validate all locations
-    const newErrors = locations.map(validateLocation);
+    const newErrors = locations.map((loc, index) => {
+      if (loc.inputType === 'coordinates') {
+        return validateLocation(loc);
+      } else {
+        // For address, check if lat/lng are populated
+        if (!loc.latitude || !loc.longitude) {
+          return { latitude: "Please select an address", longitude: "Please select an address" };
+        }
+        return {};
+      }
+    });
     setErrors(newErrors);
 
     // Check if any errors exist
@@ -138,6 +158,9 @@ const validateLocation = (location) => {
           longitude: loc.longitude,
         },
       };
+      if (loc.address) {
+        obj.address = loc.address;
+      }
       return obj;
     });
 
@@ -218,7 +241,7 @@ const validateLocation = (location) => {
                         sx={{ fontWeight: 600 }}
                       />
                     </Box>
-                    
+
                     {/* Action Buttons */}
                     <Stack direction="row" spacing={1}>
                       {locations.length > 1 && (
@@ -260,51 +283,76 @@ const validateLocation = (location) => {
                     </Stack>
                   </Box>
 
-                  {/* Coordinate Inputs */}
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={2}
-                    alignItems="flex-start"
-                  >
-                    <TextField
-                      label="Latitude"
-                      type="text"
-                      value={loc.latitude}
-                      onChange={(e) => handleChange(index, "latitude", e.target.value)}
-                      error={!!errors[index]?.latitude}
-                      helperText={errors[index]?.latitude || "e.g., 40.7128"}
-                      fullWidth
-                      placeholder="Enter latitude"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          '&.Mui-focused': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main'
+                  {/* Input Type Selection */}
+                  <FormControl component="fieldset" sx={{ mb: 2 }}>
+                    <FormLabel component="legend" sx={{ fontSize: '0.875rem', fontWeight: 500 }}>Input Method</FormLabel>
+                    <RadioGroup
+                      row
+                      value={loc.inputType}
+                      onChange={(e) => handleChange(index, "inputType", e.target.value)}
+                    >
+                      <FormControlLabel value="coordinates" control={<Radio />} label="Coordinates" />
+                      <FormControlLabel value="address" control={<Radio />} label="Address" />
+                    </RadioGroup>
+                  </FormControl>
+
+                  {/* Conditional Inputs */}
+                  {loc.inputType === 'coordinates' && (
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={2}
+                      alignItems="flex-start"
+                    >
+                      <TextField
+                        label="Latitude"
+                        type="text"
+                        value={loc.latitude}
+                        onChange={(e) => handleChange(index, "latitude", e.target.value)}
+                        error={!!errors[index]?.latitude}
+                        helperText={errors[index]?.latitude || "e.g., 40.7128"}
+                        fullWidth
+                        placeholder="Enter latitude"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            '&.Mui-focused': {
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main'
+                              }
                             }
                           }
-                        }
-                      }}
-                    />
-                    <TextField
-                      label="Longitude"
-                      type="text"
-                      value={loc.longitude}
-                      onChange={(e) => handleChange(index, "longitude", e.target.value)}
-                      error={!!errors[index]?.longitude}
-                      helperText={errors[index]?.longitude || "e.g., -74.0060"}
-                      fullWidth
-                      placeholder="Enter longitude"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          '&.Mui-focused': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main'
+                        }}
+                      />
+                      <TextField
+                        label="Longitude"
+                        type="text"
+                        value={loc.longitude}
+                        onChange={(e) => handleChange(index, "longitude", e.target.value)}
+                        error={!!errors[index]?.longitude}
+                        helperText={errors[index]?.longitude || "e.g., -74.0060"}
+                        fullWidth
+                        placeholder="Enter longitude"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            '&.Mui-focused': {
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main'
+                              }
                             }
                           }
-                        }
+                        }}
+                      />
+                    </Stack>
+                  )}
+
+                  {loc.inputType === 'address' && (
+                    <AddressAutocomplete
+                      onSelect={(address, lat, lng) => {
+                        handleChange(index, "address", address);
+                        handleChange(index, "latitude", lat.toString());
+                        handleChange(index, "longitude", lng.toString());
                       }}
                     />
-                  </Stack>
+                  )}
                 </Paper>
               </Fade>
             ))}
@@ -317,7 +365,13 @@ const validateLocation = (location) => {
                 variant="contained"
                 size="large"
                 startIcon={<SearchIcon />}
-                disabled={errors.some(error => error.latitude || error.longitude)}
+                disabled={locations.some((loc, index) => {
+                  if (loc.inputType === 'coordinates') {
+                    return errors[index]?.latitude || errors[index]?.longitude;
+                  } else {
+                    return !loc.latitude || !loc.longitude;
+                  }
+                })}
                 sx={{
                   px: 4,
                   py: 1.5,
