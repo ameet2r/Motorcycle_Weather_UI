@@ -1,40 +1,46 @@
-import { useRef } from 'react';
-import { TextField, Box } from '@mui/material';
+import { useState } from 'react';
 import { Autocomplete } from '@react-google-maps/api';
+import { TextField } from '@mui/material';
 
 export default function AddressAutocomplete({ onSelect }) {
-  const autocompleteRef = useRef(null);
+  const [autocomplete, setAutocomplete] = useState(null);
 
-  const handlePlaceChanged = () => {
-    const place = autocompleteRef.current.getPlace();
-    if (place) {
-      onSelect(place.formatted_address, place.geometry.location.lat(), place.geometry.location.lng());
-    }
+  const onLoad = (autocompleteInstance) => {
+    setAutocomplete(autocompleteInstance);
+  };
+
+  const onPlaceChanged = () => {
+    if (autocomplete !== null) {
+      const place = autocomplete.getPlace();
+      if (place && place.formatted_address && place.geometry && place.geometry.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        onSelect(place.formatted_address, lat, lng);
+      }
+    } 
   };
 
   return (
-    <Box sx={{ mt: 2 }}>
-      <Autocomplete
-        onLoad={(autocomplete) => {
-          autocompleteRef.current = autocomplete;
-        }}
-        onPlaceChanged={handlePlaceChanged}
-      >
-        <TextField
-          placeholder="Enter address..."
-          label="Address"
-          fullWidth
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              '&.Mui-focused': {
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'primary.main'
-                }
+    <Autocomplete
+      onLoad={onLoad}
+      onPlaceChanged={onPlaceChanged}
+    >
+      <TextField
+        label="Enter address"
+        variant="outlined"
+        fullWidth
+        placeholder="Start typing an address..."
+        sx={{
+          mt: 2,
+          '& .MuiOutlinedInput-root': {
+            '&.Mui-focused': {
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'primary.main'
               }
             }
-          }}
-        />
-      </Autocomplete>
-    </Box>
+          }
+        }}
+      />
+    </Autocomplete>
   );
 }

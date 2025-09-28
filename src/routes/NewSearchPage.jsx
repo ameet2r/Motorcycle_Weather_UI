@@ -12,7 +12,6 @@ import {
   Fade,
   Backdrop,
 } from "@mui/material";
-import { LoadScript } from "@react-google-maps/api";
 import LocationForm from "../components/LocationForm";
 import { saveSearchToHistory, generateSearchId } from "../utils/localStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
@@ -179,12 +178,7 @@ export default function NewSearchPage() {
         )}
 
         {/* Location Form */}
-        <LoadScript
-          googleMapsApiKey={import.meta.env.VITE_GOOGLE_PLACES_API_KEY}
-          libraries={['places']}
-        >
-          <LocationForm onSubmit={fetchWeather} initialLocations={initialCoordinates} />
-        </LoadScript>
+        <LocationForm onSubmit={fetchWeather} initialLocations={initialCoordinates} />
 
         {/* Loading Backdrop */}
         <Backdrop

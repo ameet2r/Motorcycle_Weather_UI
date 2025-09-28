@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from "react-router-dom";
+import { LoadScript } from "@react-google-maps/api";
 import ThemeProvider from './Themes/ThemeProvider';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -426,15 +427,20 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/*" element={<AppContent />} />
-          </Routes>
-        </Router>
-      </AuthProvider>
-    </ThemeProvider>
+    <LoadScript
+      googleMapsApiKey={import.meta.env.VITE_GOOGLE_PLACES_API_KEY}
+      libraries={['places']}
+    >
+      <ThemeProvider>
+        <AuthProvider>
+          <Router>
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/*" element={<AppContent />} />
+            </Routes>
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
+    </LoadScript>
   );
 }
