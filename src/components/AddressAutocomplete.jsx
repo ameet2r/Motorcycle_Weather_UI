@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Autocomplete } from '@react-google-maps/api';
 import { TextField } from '@mui/material';
 
-export default function AddressAutocomplete({ onSelect }) {
+export default function AddressAutocomplete({ onSelect, value = "" }) {
   const [autocomplete, setAutocomplete] = useState(null);
+  const inputRef = useRef(null);
 
   const onLoad = (autocompleteInstance) => {
     setAutocomplete(autocompleteInstance);
@@ -17,8 +18,15 @@ export default function AddressAutocomplete({ onSelect }) {
         const lng = place.geometry.location.lng();
         onSelect(place.formatted_address, lat, lng);
       }
-    } 
+    }
   };
+
+  // Set the initial value when the component mounts or value changes
+  useEffect(() => {
+    if (inputRef.current && value) {
+      inputRef.current.value = value;
+    }
+  }, [value]);
 
   return (
     <Autocomplete
@@ -26,9 +34,11 @@ export default function AddressAutocomplete({ onSelect }) {
       onPlaceChanged={onPlaceChanged}
     >
       <TextField
+        inputRef={inputRef}
         label="Enter address"
         variant="outlined"
         fullWidth
+        defaultValue={value}
         placeholder="Start typing an address..."
         sx={{
           mt: 2,

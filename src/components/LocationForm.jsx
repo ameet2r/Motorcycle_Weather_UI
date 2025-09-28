@@ -28,19 +28,34 @@ import InfoIcon from "@mui/icons-material/Info";
 export default function LocationForm({ onSubmit, initialLocations = [] }) {
   const [locations, setLocations] = useState(
     initialLocations.length > 0
-      ? initialLocations.map(coord => ({ latitude: coord.latitude.toString(), longitude: coord.longitude.toString(), address: "", inputType: "coordinates" }))
+      ? initialLocations.map(coord => {
+          const hasAddress = coord.address && coord.address.trim() !== "";
+          return {
+            latitude: coord.latitude.toString(),
+            longitude: coord.longitude.toString(),
+            address: coord.address || "",
+            inputType: hasAddress ? "address" : "coordinates"
+          };
+        })
       : [{ latitude: "", longitude: "", address: "", inputType: "coordinates" }]
   );
   const [errors, setErrors] = useState([]);
 
   useEffect(() => {
     if (initialLocations.length > 0) {
-      const formattedLocations = initialLocations.map(coord => ({
-        latitude: coord.latitude.toString(),
-        longitude: coord.longitude.toString(),
-        address: "",
-        inputType: "coordinates"
-      }));
+      const formattedLocations = initialLocations.map(coord => {
+        // Determine input type based on whether address exists
+        const hasAddress = coord.address && coord.address.trim() !== "";
+        const inputType = hasAddress ? "address" : "coordinates";
+        
+        return {
+          latitude: coord.latitude.toString(),
+          longitude: coord.longitude.toString(),
+          address: coord.address || "",
+          inputType: inputType
+        };
+      });
+      
       setLocations(formattedLocations);
 
       // We know this search passed validation before, so no need to rerun validation
@@ -346,6 +361,7 @@ const validateLocation = (location) => {
 
                   {loc.inputType === 'address' && (
                     <AddressAutocomplete
+                      value={loc.address}
                       onSelect={(address, lat, lng) => {
                         handleChange(index, "address", address);
                         handleChange(index, "latitude", lat.toString());
