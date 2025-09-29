@@ -1,3 +1,5 @@
+import { calculateSolarInfo, getImportantSolarEvents, getAllSolarEvents } from './solarCalculations.js';
+
 /**
  * Calculate temperature range from forecast periods
  * @param {Array} periods - Array of forecast periods
@@ -135,9 +137,11 @@ export function groupPeriodsByDay(periods) {
 /**
  * Generate a complete summary for a coordinate's forecast data grouped by day
  * @param {Object} coordinateData - Forecast data for a single coordinate
- * @returns {Object} Summary object with daily summaries
+ * @param {number} latitude - Latitude for solar calculations
+ * @param {number} longitude - Longitude for solar calculations
+ * @returns {Object} Summary object with daily summaries including solar data
  */
-export function generateCoordinateSummary(coordinateData) {
+export function generateCoordinateSummary(coordinateData, latitude, longitude) {
   const { periods = [] } = coordinateData;
   
   const groupedPeriods = groupPeriodsByDay(periods);
@@ -145,11 +149,19 @@ export function generateCoordinateSummary(coordinateData) {
 
   // Create summary for each day
   Object.entries(groupedPeriods).forEach(([date, dayPeriods]) => {
+    // Calculate solar information for this date and location
+    const solarInfo = calculateSolarInfo(
+      parseFloat(latitude),
+      parseFloat(longitude),
+      date
+    );
+
     dailySummaries[date] = {
       date,
       tempRange: calculateTemperatureRange(dayPeriods),
       windRange: calculateWindRange(dayPeriods),
       precipRange: calculatePrecipitationRange(dayPeriods),
+      solarInfo: solarInfo,
       periodCount: dayPeriods.length
     };
   });
@@ -224,6 +236,70 @@ export function formatPrecipitationRange(precipRange) {
   }
   
   return `${precipRange.min}% - ${precipRange.max}%`;
+}
+
+/**
+ * Format solar information for summary display
+ * @param {Object} solarInfo - Solar information object
+ * @returns {Array} Array of formatted solar events for summary
+ */
+export function formatSolarInfoSummary(solarInfo) {
+  if (!solarInfo) {
+    return [];
+  }
+  
+  return getImportantSolarEvents(solarInfo);
+}
+
+/**
+ * Format solar information for detailed display
+ * @param {Object} solarInfo - Solar information object
+ * @returns {Array} Array of all formatted solar events
+ */
+export function formatSolarInfoDetailed(solarInfo) {
+  if (!solarInfo) {
+    return [];
+  }
+  
+  return getAllSolarEvents(solarInfo);
+}
+
+/**
+ * Get solar event color for Material-UI chips
+ * @param {string} eventType - Type of solar event
+ * @returns {string} Material-UI color name
+ */
+export function getSolarEventColor(eventType) {
+  const colorMap = {
+    sunrise: 'warning',
+    sunset: 'error',
+    solarNoon: 'info',
+    dawn: 'secondary',
+    dusk: 'secondary',
+    goldenHourMorning: 'success',
+    goldenHourEvening: 'success'
+  };
+  
+  return colorMap[eventType] || 'default';
+}
+
+/**
+ * Get solar event icon name for Material-UI icons
+ * @param {string} eventType - Type of solar event
+ * @returns {string} Icon component name
+ */
+export function getSolarEventIcon(eventType) {
+  const iconMap = {
+    sunrise: 'WbSunny',
+    sunset: 'Brightness3',
+    solarNoon: 'WbSunny',
+    dawn: 'Brightness6',
+    dusk: 'Brightness4',
+    goldenHourMorning: 'WbTwilight',
+    goldenHourEvening: 'WbTwilight'
+  };
+  
+  return iconMap[eventType] || 'WbSunny';
 }
 
 /**
