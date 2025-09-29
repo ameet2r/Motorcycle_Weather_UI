@@ -19,6 +19,9 @@ import {
   FormLabel,
 } from "@mui/material";
 import AddressAutocomplete from './AddressAutocomplete';
+import HistoryTextField from './HistoryTextField';
+import HistoryAddressAutocomplete from './HistoryAddressAutocomplete';
+import { useSearchHistory } from '../hooks/useSearchHistory';
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
@@ -40,6 +43,11 @@ export default function LocationForm({ onSubmit, initialLocations = [] }) {
       : [{ latitude: "", longitude: "", address: "", inputType: "coordinates" }]
   );
   const [errors, setErrors] = useState([]);
+
+  // History hooks for saving search history
+  const { addToHistory: addLatHistory } = useSearchHistory('latitudeHistory');
+  const { addToHistory: addLngHistory } = useSearchHistory('longitudeHistory');
+  const { addToHistory: addAddressHistory } = useSearchHistory('addressHistory');
 
   useEffect(() => {
     if (initialLocations.length > 0) {
@@ -165,6 +173,28 @@ const validateLocation = (location) => {
     );
 
     if (hasErrors) return;
+
+    // Save successful entries to search history
+    locations.forEach((loc) => {
+      if (loc.inputType === 'coordinates') {
+        // Save latitude and longitude with optional context
+        if (loc.latitude) {
+          const context = loc.address || null;
+          addLatHistory(loc.latitude, context);
+        }
+        if (loc.longitude) {
+          const context = loc.address || null;
+          addLngHistory(loc.longitude, context);
+        }
+      } else if (loc.inputType === 'address' && loc.address) {
+        // Save address with coordinates
+        const coordinates = {
+          lat: parseFloat(loc.latitude),
+          lng: parseFloat(loc.longitude)
+        };
+        addAddressHistory(loc.address, null, coordinates);
+      }
+    });
 
     const coordinates = locations.map((loc) => {
       let obj = {
@@ -318,14 +348,23 @@ const validateLocation = (location) => {
                       spacing={2}
                       alignItems="flex-start"
                     >
-                      <TextField
+                      <HistoryTextField
                         label="Latitude"
                         type="text"
+                        historyKey="latitudeHistory"
                         value={loc.latitude}
-                        onChange={(e) => handleChange(index, "latitude", e.target.value)}
+                        onChange={(value) => handleChange(index, "latitude", value)}
+                        onHistorySelect={(entry) => {
+                          handleChange(index, "latitude", entry.value);
+                          // If the history entry has context (like city name), we could use it
+                          if (entry.context && !loc.longitude) {
+                            // This is a placeholder for potential future enhancement
+                            // where we might store lat/lng pairs together
+                          }
+                        }}
+                        fullWidth
                         error={!!errors[index]?.latitude}
                         helperText={errors[index]?.latitude || "e.g., 40.7128"}
-                        fullWidth
                         placeholder="Enter latitude"
                         sx={{
                           '& .MuiOutlinedInput-root': {
@@ -337,14 +376,18 @@ const validateLocation = (location) => {
                           }
                         }}
                       />
-                      <TextField
+                      <HistoryTextField
                         label="Longitude"
                         type="text"
+                        historyKey="longitudeHistory"
                         value={loc.longitude}
-                        onChange={(e) => handleChange(index, "longitude", e.target.value)}
+                        onChange={(value) => handleChange(index, "longitude", value)}
+                        onHistorySelect={(entry) => {
+                          handleChange(index, "longitude", entry.value);
+                        }}
+                        fullWidth
                         error={!!errors[index]?.longitude}
                         helperText={errors[index]?.longitude || "e.g., -74.0060"}
-                        fullWidth
                         placeholder="Enter longitude"
                         sx={{
                           '& .MuiOutlinedInput-root': {
@@ -360,7 +403,7 @@ const validateLocation = (location) => {
                   )}
 
                   {loc.inputType === 'address' && (
-                    <AddressAutocomplete
+                    <HistoryAddressAutocomplete
                       value={loc.address}
                       onSelect={(address, lat, lng) => {
                         handleChange(index, "address", address);
