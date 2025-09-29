@@ -32,13 +32,21 @@ import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import HeightIcon from "@mui/icons-material/Height";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import Brightness3Icon from '@mui/icons-material/Brightness3';
+import WbTwilightIcon from '@mui/icons-material/WbTwilight';
+import Brightness6Icon from '@mui/icons-material/Brightness6';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
 import { getSearchById } from "../utils/localStorage";
 import {
   formatTemperatureRange,
   formatWindRange,
   formatPrecipitationRange,
   formatDateWithRelativeDay,
+  formatSolarInfoDetailed,
+  getSolarEventColor,
 } from "../utils/forecastSummary";
+import { formatDateTime, formatPeriodTime } from "../utils/dateTimeFormatters";
 
 export default function ForecastDetailsPage() {
   const { searchId } = useParams();
@@ -75,35 +83,6 @@ export default function ForecastDetailsPage() {
     navigate('/previous-searches');
   };
 
-  const formatDateTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatPeriodTime = (startTime, endTime) => {
-    if (!startTime || !endTime) return 'Time not available';
-    
-    try {
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      
-      return `${start.toLocaleDateString()} ${start.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })} - ${end.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })}`;
-    } catch {
-      return `${startTime} - ${endTime}`;
-    }
-  };
 
   const createPeriodToDateMapping = (periods) => {
     const mapping = {};
@@ -380,6 +359,54 @@ export default function ForecastDetailsPage() {
                                         <strong>Precipitation:</strong> {formatPrecipitationRange(daySummary.precipRange)}
                                       </Typography>
                                     </Box>
+                                    
+                                    {/* Solar Information */}
+                                    {daySummary.solarInfo && (
+                                      <Box sx={{ mt: 2 }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                                          Solar Information:
+                                        </Typography>
+                                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                          {formatSolarInfoDetailed(daySummary.solarInfo).map((solarEvent, solarIndex) => {
+                                            const getSolarIcon = (eventType) => {
+                                              switch (eventType) {
+                                                case 'sunrise':
+                                                  return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                                case 'sunset':
+                                                  return <Brightness3Icon sx={{ fontSize: '14px !important' }} />;
+                                                case 'solarNoon':
+                                                  return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                                case 'dawn':
+                                                  return <Brightness6Icon sx={{ fontSize: '14px !important' }} />;
+                                                case 'dusk':
+                                                  return <Brightness4Icon sx={{ fontSize: '14px !important' }} />;
+                                                case 'goldenHours':
+                                                  return <WbTwilightIcon sx={{ fontSize: '14px !important' }} />;
+                                                default:
+                                                  return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                              }
+                                            };
+
+                                            return (
+                                              <Tooltip key={solarIndex} title={`${solarEvent.label}: ${solarEvent.time}`}>
+                                                <Chip
+                                                  icon={getSolarIcon(solarEvent.type)}
+                                                  label={`${solarEvent.label}: ${solarEvent.time}`}
+                                                  size="small"
+                                                  variant="outlined"
+                                                  color={getSolarEventColor(solarEvent.type)}
+                                                  sx={{
+                                                    fontSize: '0.75rem',
+                                                    height: '24px',
+                                                    '& .MuiChip-icon': { fontSize: 14 }
+                                                  }}
+                                                />
+                                              </Tooltip>
+                                            );
+                                          })}
+                                        </Stack>
+                                      </Box>
+                                    )}
                                   </Stack>
                                 </Box>
                               </AccordionSummary>

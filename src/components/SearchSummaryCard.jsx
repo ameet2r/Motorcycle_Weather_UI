@@ -17,7 +17,10 @@ import {
   formatWindRange,
   formatPrecipitationRange,
   formatDateWithRelativeDay,
+  formatSolarInfoSummary,
+  getSolarEventColor,
 } from "../utils/forecastSummary";
+import { formatDateTime } from "../utils/dateTimeFormatters";
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ThermostatIcon from '@mui/icons-material/Thermostat';
@@ -25,19 +28,14 @@ import AirIcon from '@mui/icons-material/Air';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import LaunchIcon from '@mui/icons-material/Launch';
 import ReplayIcon from '@mui/icons-material/Replay';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import Brightness3Icon from '@mui/icons-material/Brightness3';
+import WbTwilightIcon from '@mui/icons-material/WbTwilight';
+import Brightness6Icon from '@mui/icons-material/Brightness6';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
 
 export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
 
-  const formatDateTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const formatCoordinates = (coordinates) => {
     return coordinates.map(coord => {
@@ -246,6 +244,45 @@ export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
                                 }}
                               />
                             </Tooltip>
+                            
+                            {/* Solar Information Chips */}
+                            {daySummary.solarInfo && formatSolarInfoSummary(daySummary.solarInfo).map((solarEvent, solarIndex) => {
+                              const getSolarIcon = (eventType) => {
+                                switch (eventType) {
+                                  case 'sunrise':
+                                    return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                  case 'sunset':
+                                    return <Brightness3Icon sx={{ fontSize: '14px !important' }} />;
+                                  case 'solarNoon':
+                                    return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                  case 'dawn':
+                                    return <Brightness6Icon sx={{ fontSize: '14px !important' }} />;
+                                  case 'dusk':
+                                    return <Brightness4Icon sx={{ fontSize: '14px !important' }} />;
+                                  case 'goldenHours':
+                                    return <WbTwilightIcon sx={{ fontSize: '14px !important' }} />;
+                                  default:
+                                    return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                }
+                              };
+
+                              return (
+                                <Tooltip key={solarIndex} title={solarEvent.label}>
+                                  <Chip
+                                    icon={getSolarIcon(solarEvent.type)}
+                                    label={`${solarEvent.label}: ${solarEvent.time}`}
+                                    size="small"
+                                    variant="outlined"
+                                    color={getSolarEventColor(solarEvent.type)}
+                                    sx={{
+                                      fontSize: '0.75rem',
+                                      height: '24px',
+                                      '& .MuiChip-icon': { fontSize: 14 }
+                                    }}
+                                  />
+                                </Tooltip>
+                              );
+                            })}
                           </Stack>
                         </Box>
                       ))}

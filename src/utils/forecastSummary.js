@@ -1,3 +1,6 @@
+import { calculateSolarInfo, getImportantSolarEvents, getAllSolarEvents } from './solarCalculations.js';
+import { formatDateWithRelativeDay as formatDateWithRelativeDayUtil } from './dateTimeFormatters.js';
+
 /**
  * Calculate temperature range from forecast periods
  * @param {Array} periods - Array of forecast periods
@@ -135,9 +138,11 @@ export function groupPeriodsByDay(periods) {
 /**
  * Generate a complete summary for a coordinate's forecast data grouped by day
  * @param {Object} coordinateData - Forecast data for a single coordinate
- * @returns {Object} Summary object with daily summaries
+ * @param {number} latitude - Latitude for solar calculations
+ * @param {number} longitude - Longitude for solar calculations
+ * @returns {Object} Summary object with daily summaries including solar data
  */
-export function generateCoordinateSummary(coordinateData) {
+export function generateCoordinateSummary(coordinateData, latitude, longitude) {
   const { periods = [] } = coordinateData;
   
   const groupedPeriods = groupPeriodsByDay(periods);
@@ -145,11 +150,19 @@ export function generateCoordinateSummary(coordinateData) {
 
   // Create summary for each day
   Object.entries(groupedPeriods).forEach(([date, dayPeriods]) => {
+    // Calculate solar information for this date and location
+    const solarInfo = calculateSolarInfo(
+      parseFloat(latitude),
+      parseFloat(longitude),
+      date
+    );
+
     dailySummaries[date] = {
       date,
       tempRange: calculateTemperatureRange(dayPeriods),
       windRange: calculateWindRange(dayPeriods),
       precipRange: calculatePrecipitationRange(dayPeriods),
+      solarInfo: solarInfo,
       periodCount: dayPeriods.length
     };
   });
@@ -227,48 +240,73 @@ export function formatPrecipitationRange(precipRange) {
 }
 
 /**
- * Format date with relative day names (Today, Tomorrow, etc.) and day of week
+ * Format solar information for summary display
+ * @param {Object} solarInfo - Solar information object
+ * @returns {Array} Array of formatted solar events for summary
+ */
+export function formatSolarInfoSummary(solarInfo) {
+  if (!solarInfo) {
+    return [];
+  }
+  
+  return getImportantSolarEvents(solarInfo);
+}
+
+/**
+ * Format solar information for detailed display
+ * @param {Object} solarInfo - Solar information object
+ * @returns {Array} Array of all formatted solar events
+ */
+export function formatSolarInfoDetailed(solarInfo) {
+  if (!solarInfo) {
+    return [];
+  }
+  
+  return getAllSolarEvents(solarInfo);
+}
+
+/**
+ * Get solar event color for Material-UI chips
+ * @param {string} eventType - Type of solar event
+ * @returns {string} Material-UI color name
+ */
+export function getSolarEventColor(eventType) {
+  const colorMap = {
+    sunrise: 'warning',
+    sunset: 'error',
+    solarNoon: 'info',
+    dawn: 'secondary',
+    dusk: 'secondary',
+    goldenHours: 'success'
+  };
+  
+  return colorMap[eventType] || 'default';
+}
+
+/**
+ * Get solar event icon name for Material-UI icons
+ * @param {string} eventType - Type of solar event
+ * @returns {string} Icon component name
+ */
+export function getSolarEventIcon(eventType) {
+  const iconMap = {
+    sunrise: 'WbSunny',
+    sunset: 'Brightness3',
+    solarNoon: 'WbSunny',
+    dawn: 'Brightness6',
+    dusk: 'Brightness4',
+    goldenHourMorning: 'WbTwilight',
+    goldenHourEvening: 'WbTwilight'
+  };
+  
+  return iconMap[eventType] || 'WbSunny';
+}
+
+/**
+ * Format date with relative day names (Today, Tomorrow, etc.) and YYYY-MM-DD format
  * @param {string} dateString - Date string in YYYY-MM-DD format
  * @returns {string} Formatted date string
  */
 export function formatDateWithRelativeDay(dateString) {
-  try {
-    const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-
-    // Normalize dates to compare just the date part
-    const normalizeDate = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const normalizedDate = normalizeDate(date);
-    const normalizedToday = normalizeDate(today);
-    const normalizedTomorrow = normalizeDate(tomorrow);
-    const normalizedYesterday = normalizeDate(yesterday);
-
-    let relativeDay = '';
-    if (normalizedDate.getTime() === normalizedToday.getTime()) {
-      relativeDay = 'Today';
-    } else if (normalizedDate.getTime() === normalizedTomorrow.getTime()) {
-      relativeDay = 'Tomorrow';
-    } else if (normalizedDate.getTime() === normalizedYesterday.getTime()) {
-      relativeDay = 'Yesterday';
-    }
-
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-    const formattedDate = date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
-    });
-
-    if (relativeDay) {
-      return `${relativeDay} (${dayOfWeek}, ${formattedDate})`;
-    } else {
-      return `${dayOfWeek}, ${formattedDate}`;
-    }
-  } catch (error) {
-    console.warn('Error formatting date:', dateString, error);
-    return dateString;
-  }
+  return formatDateWithRelativeDayUtil(dateString);
 }

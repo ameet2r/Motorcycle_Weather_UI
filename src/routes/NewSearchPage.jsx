@@ -83,7 +83,7 @@ export default function NewSearchPage() {
           address: addressMap[key] || "",
           elevation: forecast.elevation ? forecast.elevation : "",
           periods: forecast.periods,
-          summary: generateCoordinateSummary(forecast)
+          summary: generateCoordinateSummary(forecast, key.split(':')[0], key.split(':')[1])
         };
       });
 
