@@ -28,13 +28,14 @@ import AirIcon from '@mui/icons-material/Air';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import LaunchIcon from '@mui/icons-material/Launch';
 import ReplayIcon from '@mui/icons-material/Replay';
+import EditIcon from '@mui/icons-material/Edit';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import Brightness3Icon from '@mui/icons-material/Brightness3';
 import WbTwilightIcon from '@mui/icons-material/WbTwilight';
 import Brightness6Icon from '@mui/icons-material/Brightness6';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 
-export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
+export default function SearchSummaryCard({ search, onClick, onEditSearch, onRedoSearch, isRedoing }) {
 
 
   const formatCoordinates = (coordinates) => {
@@ -89,14 +90,32 @@ export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
           </Box>
 
           <Stack direction="row" spacing={1}>
-            <Tooltip title="Redo Search">
+            <Tooltip title="Edit Search">
               <IconButton
-                onClick={() => onRedoSearch(search)}
+                onClick={() => onEditSearch(search)}
                 sx={{
                   color: 'secondary.main',
                   '&:hover': {
                     backgroundColor: 'secondary.main',
                     color: 'secondary.contrastText'
+                  }
+                }}
+              >
+                <EditIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Redo Search">
+              <IconButton
+                onClick={() => onRedoSearch(search)}
+                disabled={isRedoing}
+                sx={{
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText'
+                  },
+                  '&.Mui-disabled': {
+                    color: 'action.disabled'
                   }
                 }}
               >
@@ -107,10 +126,10 @@ export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
               <IconButton
                 onClick={() => onClick(search.id)}
                 sx={{
-                  color: 'primary.main',
+                  color: 'info.main',
                   '&:hover': {
-                    backgroundColor: 'primary.main',
-                    color: 'primary.contrastText'
+                    backgroundColor: 'info.main',
+                    color: 'info.contrastText'
                   }
                 }}
               >
