@@ -11,18 +11,51 @@ import {
   Skeleton,
   Chip,
   Divider,
+  Backdrop,
+  LinearProgress,
+  CircularProgress,
 } from "@mui/material";
+import { keyframes } from "@emotion/react";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
 import HistoryIcon from "@mui/icons-material/History";
 import InfoIcon from "@mui/icons-material/Info";
-import { getSearchHistory, clearSearchHistory } from "../utils/localStorage";
+import CloudIcon from '@mui/icons-material/Cloud';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import { getSearchHistory, clearSearchHistory, saveSearchToHistory, generateSearchId } from "../utils/localStorage";
+import { generateCoordinateSummary } from "../utils/forecastSummary";
+import { authenticatedPost, isAuthError } from "../utils/api";
+import { useAuth } from "../contexts/AuthContext";
+import { useUser } from "../contexts/UserContext";
 import SearchSummaryCard from "../components/SearchSummaryCard";
+
+const pulse = keyframes`
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
 
 export default function PreviousSearchesPage() {
   const [searches, setSearches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [redoLoading, setRedoLoading] = useState(false);
+  const [redoLoadingStep, setRedoLoadingStep] = useState('');
+  const [redoError, setRedoError] = useState(null);
+  const [redoSuccess, setRedoSuccess] = useState(false);
+  const [redoingSearchId, setRedoingSearchId] = useState(null);
   const navigate = useNavigate();
+  const { logout } = useAuth();
+  const { membershipTier } = useUser();
 
   useEffect(() => {
     loadSearchHistory();
@@ -59,8 +92,111 @@ export default function PreviousSearchesPage() {
     navigate('/');
   };
 
-  const handleRedoSearch = (search) => {
+  const handleEditSearch = (search) => {
     navigate('/', { state: { coordinates: search.coordinates } });
+  };
+
+  const handleRedoSearch = async (search) => {
+    setRedoLoading(true);
+    setRedoError(null);
+    setRedoSuccess(false);
+    setRedoingSearchId(search.id);
+
+    try {
+      setRedoLoadingStep('Preparing search data...');
+      
+      // Transform search coordinates back to API format
+      const apiCoordinates = {
+        coordinates: search.coordinates.map(coord => ({
+          latLng: {
+            latitude: coord.latitude,
+            longitude: coord.longitude
+          },
+          address: coord.address || ""
+        }))
+      };
+
+      setRedoLoadingStep('Fetching weather data...');
+      
+      // Use authenticated API call
+      const result = await authenticatedPost('/CoordinatesToWeather/', apiCoordinates);
+      const map = result.coordinates_to_forecasts_map;
+
+      setRedoLoadingStep('Processing forecast data...');
+
+      // Create address mapping from search coordinates
+      const addressMap = {};
+      search.coordinates.forEach(coord => {
+        const key = `${coord.latitude}:${coord.longitude}`;
+        addressMap[key] = coord.address || "";
+      });
+
+      // Transform the data for storage
+      const coordinatesData = Object.entries(map).map(([key, forecastsForKey]) => {
+        // Each coordinate can have multiple forecasts, but we'll take the first one
+        const forecast = forecastsForKey[0];
+
+        return {
+          key,
+          latitude: key.split(':')[0],
+          longitude: key.split(':')[1],
+          address: addressMap[key] || "",
+          elevation: forecast.elevation ? forecast.elevation : "",
+          periods: forecast.periods,
+          summary: generateCoordinateSummary(forecast, key.split(':')[0], key.split(':')[1])
+        };
+      });
+
+      setRedoLoadingStep('Saving search results...');
+
+      // Create search object for localStorage
+      const searchData = {
+        id: generateSearchId(),
+        timestamp: new Date().toISOString(),
+        coordinates: coordinatesData
+      };
+
+      // Save to localStorage
+      const saved = saveSearchToHistory(searchData, membershipTier);
+      
+      if (saved) {
+        setRedoLoadingStep('Complete!');
+        setRedoSuccess(true);
+        
+        // Reload search history to show the new search
+        loadSearchHistory();
+        
+        // Navigate to the new search details
+        navigate(`/forecast/${searchData.id}`);
+      } else {
+        throw new Error('Failed to save search results');
+      }
+
+    } catch (err) {
+      console.error("Error redoing search:", err);
+      
+      // Handle authentication errors
+      if (isAuthError(err)) {
+        setRedoError('Your session has expired. Please log in again.');
+        // Logout and redirect to auth page
+        setTimeout(async () => {
+          try {
+            await logout();
+            navigate('/auth');
+          } catch (logoutError) {
+            console.error('Logout error:', logoutError);
+          }
+        }, 2000);
+      } else {
+        setRedoError(err.message || 'An unexpected error occurred while fetching weather data');
+      }
+    } finally {
+      if (!redoSuccess) {
+        setRedoLoading(false);
+        setRedoLoadingStep('');
+        setRedoingSearchId(null);
+      }
+    }
   };
 
   if (loading) {
@@ -225,13 +361,46 @@ export default function PreviousSearchesPage() {
                     <SearchSummaryCard
                       search={search}
                       onClick={handleSearchClick}
+                      onEditSearch={handleEditSearch}
                       onRedoSearch={handleRedoSearch}
+                      isRedoing={redoingSearchId === search.id}
                     />
                   </div>
                 </Fade>
               ))}
             </Stack>
           </Stack>
+        )}
+
+        {/* Error Alert */}
+        {redoError && (
+          <Fade in={true}>
+            <Alert
+              severity="error"
+              icon={<ErrorIcon />}
+              onClose={() => setRedoError(null)}
+              sx={{ borderRadius: 2 }}
+            >
+              <Typography variant="body2">
+                <strong>Error:</strong> {redoError}
+              </Typography>
+            </Alert>
+          </Fade>
+        )}
+
+        {/* Success Alert */}
+        {redoSuccess && (
+          <Fade in={true}>
+            <Alert
+              severity="success"
+              icon={<CheckCircleIcon />}
+              sx={{ borderRadius: 2 }}
+            >
+              <Typography variant="body2">
+                <strong>Success!</strong> Weather data retrieved successfully. Redirecting to results...
+              </Typography>
+            </Alert>
+          </Fade>
         )}
 
         {/* Info Alert */}
@@ -252,6 +421,60 @@ export default function PreviousSearchesPage() {
             </Alert>
           </Fade>
         )}
+
+        {/* Loading Backdrop */}
+        <Backdrop
+          sx={{
+            color: '#fff',
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            backdropFilter: 'blur(4px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)'
+          }}
+          open={redoLoading}
+        >
+          <Paper
+            elevation={3}
+            sx={{
+              p: 4,
+              borderRadius: 3,
+              textAlign: 'center',
+              minWidth: 300,
+              backgroundColor: 'background.paper'
+            }}
+          >
+            <Box sx={{ mb: 3 }}>
+              <CloudIcon
+                sx={{
+                  fontSize: 48,
+                  color: 'primary.main',
+                  animation: `${pulse} 2s infinite`
+                }}
+              />
+            </Box>
+            
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Redoing Weather Search
+            </Typography>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              {redoLoadingStep}
+            </Typography>
+            
+            <LinearProgress
+              sx={{
+                borderRadius: 1,
+                height: 6,
+                '& .MuiLinearProgress-bar': {
+                  borderRadius: 1
+                }
+              }}
+            />
+            
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <CircularProgress size={24} thickness={4} />
+            </Box>
+          </Paper>
+        </Backdrop>
       </Stack>
     </Box>
   );
