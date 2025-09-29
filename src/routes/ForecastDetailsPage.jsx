@@ -46,6 +46,7 @@ import {
   formatSolarInfoDetailed,
   getSolarEventColor,
 } from "../utils/forecastSummary";
+import { formatDateTime, formatPeriodTime } from "../utils/dateTimeFormatters";
 
 export default function ForecastDetailsPage() {
   const { searchId } = useParams();
@@ -82,35 +83,6 @@ export default function ForecastDetailsPage() {
     navigate('/previous-searches');
   };
 
-  const formatDateTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatPeriodTime = (startTime, endTime) => {
-    if (!startTime || !endTime) return 'Time not available';
-    
-    try {
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      
-      return `${start.toLocaleDateString()} ${start.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })} - ${end.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })}`;
-    } catch {
-      return `${startTime} - ${endTime}`;
-    }
-  };
 
   const createPeriodToDateMapping = (periods) => {
     const mapping = {};
@@ -408,8 +380,7 @@ export default function ForecastDetailsPage() {
                                                   return <Brightness6Icon sx={{ fontSize: '14px !important' }} />;
                                                 case 'dusk':
                                                   return <Brightness4Icon sx={{ fontSize: '14px !important' }} />;
-                                                case 'goldenHourMorning':
-                                                case 'goldenHourEvening':
+                                                case 'goldenHours':
                                                   return <WbTwilightIcon sx={{ fontSize: '14px !important' }} />;
                                                 default:
                                                   return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;

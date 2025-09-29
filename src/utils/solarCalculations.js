@@ -1,4 +1,5 @@
 import SunCalc from 'suncalc';
+import { formatTime, formatSolarTimeRange as formatSolarTimeRangeUtil } from './dateTimeFormatters.js';
 
 /**
  * Calculate solar information for a specific date and location
@@ -14,7 +15,9 @@ export function calculateSolarInfo(latitude, longitude, dateString) {
     const lng = parseFloat(longitude);
     
     // Parse the date string and create a Date object for the given day
-    const date = new Date(dateString + 'T12:00:00'); // Use noon to avoid timezone issues
+    // Use local timezone noon to avoid timezone conversion issues
+    const [year, month, day] = dateString.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0);
     
     // Validate coordinates
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -28,12 +31,32 @@ export function calculateSolarInfo(latitude, longitude, dateString) {
       return null;
     }
 
-
     // Get sun times for the date
     const sunTimes = SunCalc.getTimes(date, lat, lng);
     
     // Get sun position at solar noon for additional calculations
     const solarNoonPosition = SunCalc.getPosition(sunTimes.solarNoon, lat, lng);
+    
+    // Create goldenHours object if we have sunrise and sunset
+    let goldenHours = null;
+    if (sunTimes.sunrise && sunTimes.sunset) {
+      // Calculate golden hour times manually using correct definitions
+      // Morning golden hour: 1 hour after sunrise
+      // Evening golden hour: 1 hour before sunset
+      const morningGoldenEnd = new Date(sunTimes.sunrise.getTime() + 60 * 60 * 1000); // 1 hour after sunrise
+      const eveningGoldenStart = new Date(sunTimes.sunset.getTime() - 60 * 60 * 1000); // 1 hour before sunset
+      
+      goldenHours = {
+        morning: {
+          start: sunTimes.sunrise,
+          end: morningGoldenEnd
+        },
+        evening: {
+          start: eveningGoldenStart,
+          end: sunTimes.sunset
+        }
+      };
+    }
     
     const solarInfo = {
       sunrise: sunTimes.sunrise,
@@ -41,14 +64,7 @@ export function calculateSolarInfo(latitude, longitude, dateString) {
       solarNoon: sunTimes.solarNoon,
       dawn: sunTimes.dawn,
       dusk: sunTimes.dusk,
-      goldenHourMorning: {
-        start: sunTimes.goldenHour,
-        end: sunTimes.sunrise
-      },
-      goldenHourEvening: {
-        start: sunTimes.sunset,
-        end: sunTimes.goldenHourEnd
-      },
+      goldenHours: goldenHours,
       // Additional useful information
       nauticalDawn: sunTimes.nauticalDawn,
       nauticalDusk: sunTimes.nauticalDusk,
@@ -65,31 +81,12 @@ export function calculateSolarInfo(latitude, longitude, dateString) {
 }
 
 /**
- * Format time for display in local timezone
+ * Format time for display in 24-hour format
  * @param {Date} date - Date object to format
- * @returns {string} Formatted time string (e.g., "6:23 AM")
+ * @returns {string} Formatted time string (e.g., "06:23")
  */
 export function formatSolarTime(date) {
-  // Handle both Date objects and date strings
-  let dateObj;
-  if (date instanceof Date) {
-    dateObj = date;
-  } else if (typeof date === 'string') {
-    dateObj = new Date(date);
-  } else {
-    return 'N/A';
-  }
-  
-  // Check if the date is valid
-  if (isNaN(dateObj.getTime())) {
-    return 'N/A';
-  }
-  
-  return dateObj.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
+  return formatTime(date);
 }
 
 /**
@@ -98,18 +95,7 @@ export function formatSolarTime(date) {
  * @returns {string} Formatted time range string
  */
 export function formatSolarTimeRange(timeRange) {
-  if (!timeRange || !timeRange.start || !timeRange.end) {
-    return 'N/A';
-  }
-  
-  const startTime = formatSolarTime(timeRange.start);
-  const endTime = formatSolarTime(timeRange.end);
-  
-  if (startTime === 'N/A' || endTime === 'N/A') {
-    return 'N/A';
-  }
-  
-  return `${startTime} - ${endTime}`;
+  return formatSolarTimeRangeUtil(timeRange);
 }
 
 /**
@@ -143,6 +129,22 @@ export function getImportantSolarEvents(solarInfo) {
     });
   }
   
+  // Include combined golden hours in summary - be more lenient with validation
+  if (solarInfo.goldenHours && solarInfo.goldenHours.morning && solarInfo.goldenHours.evening) {
+    const morningTime = formatSolarTimeRange(solarInfo.goldenHours.morning);
+    const eveningTime = formatSolarTimeRange(solarInfo.goldenHours.evening);
+    
+    // Only add if we got valid formatted times
+    if (morningTime !== 'N/A' && eveningTime !== 'N/A') {
+      events.push({
+        label: 'Golden Hours',
+        time: `${morningTime} & ${eveningTime}`,
+        type: 'goldenHours',
+        rawTime: solarInfo.goldenHours
+      });
+    }
+  }
+  
   return events;
 }
 
@@ -168,15 +170,6 @@ export function getAllSolarEvents(solarInfo) {
     });
   }
   
-  // Morning Golden Hour
-  if (solarInfo.goldenHourMorning && solarInfo.goldenHourMorning.start) {
-    events.push({
-      label: 'Golden Hour (AM)',
-      time: formatSolarTimeRange(solarInfo.goldenHourMorning),
-      type: 'goldenHourMorning',
-      rawTime: solarInfo.goldenHourMorning
-    });
-  }
   
   // Sunrise
   if (solarInfo.sunrise) {
@@ -208,14 +201,20 @@ export function getAllSolarEvents(solarInfo) {
     });
   }
   
-  // Evening Golden Hour
-  if (solarInfo.goldenHourEvening && solarInfo.goldenHourEvening.start) {
-    events.push({
-      label: 'Golden Hour (PM)',
-      time: formatSolarTimeRange(solarInfo.goldenHourEvening),
-      type: 'goldenHourEvening',
-      rawTime: solarInfo.goldenHourEvening
-    });
+  // Combined Golden Hours
+  if (solarInfo.goldenHours && solarInfo.goldenHours.morning && solarInfo.goldenHours.evening) {
+    const morningTime = formatSolarTimeRange(solarInfo.goldenHours.morning);
+    const eveningTime = formatSolarTimeRange(solarInfo.goldenHours.evening);
+    
+    // Only add if we got valid formatted times
+    if (morningTime !== 'N/A' && eveningTime !== 'N/A') {
+      events.push({
+        label: 'Golden Hours',
+        time: `${morningTime} & ${eveningTime}`,
+        type: 'goldenHours',
+        rawTime: solarInfo.goldenHours
+      });
+    }
   }
   
   // Dusk

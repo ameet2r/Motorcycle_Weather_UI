@@ -1,4 +1,5 @@
 import { calculateSolarInfo, getImportantSolarEvents, getAllSolarEvents } from './solarCalculations.js';
+import { formatDateWithRelativeDay as formatDateWithRelativeDayUtil } from './dateTimeFormatters.js';
 
 /**
  * Calculate temperature range from forecast periods
@@ -276,8 +277,7 @@ export function getSolarEventColor(eventType) {
     solarNoon: 'info',
     dawn: 'secondary',
     dusk: 'secondary',
-    goldenHourMorning: 'success',
-    goldenHourEvening: 'success'
+    goldenHours: 'success'
   };
   
   return colorMap[eventType] || 'default';
@@ -303,48 +303,10 @@ export function getSolarEventIcon(eventType) {
 }
 
 /**
- * Format date with relative day names (Today, Tomorrow, etc.) and day of week
+ * Format date with relative day names (Today, Tomorrow, etc.) and YYYY-MM-DD format
  * @param {string} dateString - Date string in YYYY-MM-DD format
  * @returns {string} Formatted date string
  */
 export function formatDateWithRelativeDay(dateString) {
-  try {
-    const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-
-    // Normalize dates to compare just the date part
-    const normalizeDate = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const normalizedDate = normalizeDate(date);
-    const normalizedToday = normalizeDate(today);
-    const normalizedTomorrow = normalizeDate(tomorrow);
-    const normalizedYesterday = normalizeDate(yesterday);
-
-    let relativeDay = '';
-    if (normalizedDate.getTime() === normalizedToday.getTime()) {
-      relativeDay = 'Today';
-    } else if (normalizedDate.getTime() === normalizedTomorrow.getTime()) {
-      relativeDay = 'Tomorrow';
-    } else if (normalizedDate.getTime() === normalizedYesterday.getTime()) {
-      relativeDay = 'Yesterday';
-    }
-
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-    const formattedDate = date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
-    });
-
-    if (relativeDay) {
-      return `${relativeDay} (${dayOfWeek}, ${formattedDate})`;
-    } else {
-      return `${dayOfWeek}, ${formattedDate}`;
-    }
-  } catch (error) {
-    console.warn('Error formatting date:', dateString, error);
-    return dateString;
-  }
+  return formatDateWithRelativeDayUtil(dateString);
 }

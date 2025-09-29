@@ -20,6 +20,7 @@ import {
   formatSolarInfoSummary,
   getSolarEventColor,
 } from "../utils/forecastSummary";
+import { formatDateTime } from "../utils/dateTimeFormatters";
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ThermostatIcon from '@mui/icons-material/Thermostat';
@@ -35,16 +36,6 @@ import Brightness4Icon from '@mui/icons-material/Brightness4';
 
 export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
 
-  const formatDateTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const formatCoordinates = (coordinates) => {
     return coordinates.map(coord => {
@@ -268,8 +259,7 @@ export default function SearchSummaryCard({ search, onClick, onRedoSearch }) {
                                     return <Brightness6Icon sx={{ fontSize: '14px !important' }} />;
                                   case 'dusk':
                                     return <Brightness4Icon sx={{ fontSize: '14px !important' }} />;
-                                  case 'goldenHourMorning':
-                                  case 'goldenHourEvening':
+                                  case 'goldenHours':
                                     return <WbTwilightIcon sx={{ fontSize: '14px !important' }} />;
                                   default:
                                     return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
