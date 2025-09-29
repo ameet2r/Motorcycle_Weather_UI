@@ -177,6 +177,35 @@ export function formatPeriodTime(startTime, endTime) {
 }
 
 /**
+ * Check if the current datetime falls within a forecast period's time range
+ * @param {string|Date} startTime - Period start time
+ * @param {string|Date} endTime - Period end time
+ * @returns {boolean} True if current time is within the period range
+ */
+export function isCurrentPeriod(startTime, endTime) {
+  if (!startTime || !endTime) {
+    return false;
+  }
+
+  try {
+    const now = new Date();
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    // Check for invalid dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return false;
+    }
+
+    // Current time should be >= start and < end (inclusive start, exclusive end)
+    return now >= start && now < end;
+  } catch (error) {
+    console.warn('Error checking current period:', startTime, endTime, error);
+    return false;
+  }
+}
+
+/**
  * Format solar time range for golden hours
  * @param {Object} timeRange - Object with start and end Date objects
  * @returns {string} Formatted time range string

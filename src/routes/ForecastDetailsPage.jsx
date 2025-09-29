@@ -46,7 +46,7 @@ import {
   formatSolarInfoDetailed,
   getSolarEventColor,
 } from "../utils/forecastSummary";
-import { formatDateTime, formatPeriodTime } from "../utils/dateTimeFormatters";
+import { formatDateTime, formatPeriodTime, isCurrentPeriod } from "../utils/dateTimeFormatters";
 
 export default function ForecastDetailsPage() {
   const { searchId } = useParams();
@@ -420,7 +420,13 @@ export default function ForecastDetailsPage() {
                                           borderRadius: 2,
                                           border: '1px solid',
                                           borderColor: 'divider',
-                                          backgroundColor: 'background.paper'
+                                          backgroundColor: 'background.paper',
+                                          ...(isCurrentPeriod(period.start_time, period.end_time) && {
+                                            border: '2px solid',
+                                            borderColor: 'primary.main',
+                                            boxShadow: '0 0 8px rgba(25, 118, 210, 0.3)',
+                                            position: 'relative'
+                                          })
                                         }}
                                       >
                                         <Stack spacing={1}>
