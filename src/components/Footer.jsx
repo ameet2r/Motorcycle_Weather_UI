@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Container,
@@ -6,14 +6,25 @@ import {
   Stack,
   Divider,
   Chip,
-  Link
+  Link,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton
 } from "@mui/material";
 import InfoIcon from '@mui/icons-material/Info';
 import CloudIcon from '@mui/icons-material/Cloud';
 import PublicIcon from '@mui/icons-material/Public';
+import CloseIcon from '@mui/icons-material/Close';
+import TermsOfServiceContent from './TermsOfService';
+import PrivacyPolicyContent from './PrivacyPolicy';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const [tosOpen, setTosOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   
   const supportedRegions = [
     "Continental US",
@@ -111,11 +122,13 @@ export default function Footer() {
             <Typography variant="caption" color="text.secondary">
               Weather data provided by the National Weather Service.
               <Link
-                href="#"
+                component="button"
+                onClick={() => setTosOpen(true)}
                 color="primary"
                 sx={{
                   ml: 1,
                   textDecoration: 'none',
+                  cursor: 'pointer',
                   '&:hover': { textDecoration: 'underline' }
                 }}
               >
@@ -123,10 +136,12 @@ export default function Footer() {
               </Link>
               {' • '}
               <Link
-                href="#"
+                component="button"
+                onClick={() => setPrivacyOpen(true)}
                 color="primary"
                 sx={{
                   textDecoration: 'none',
+                  cursor: 'pointer',
                   '&:hover': { textDecoration: 'underline' }
                 }}
               >
@@ -136,6 +151,70 @@ export default function Footer() {
           </Box>
         </Stack>
       </Container>
+
+      {/* Terms of Service Dialog */}
+      <Dialog
+        open={tosOpen}
+        onClose={() => setTosOpen(false)}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+      >
+        <DialogTitle sx={{ m: 0, p: 2, pr: 6 }}>
+          Terms of Service
+          <IconButton
+            onClick={() => setTosOpen(false)}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <TermsOfServiceContent />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTosOpen(false)} variant="contained">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Privacy Policy Dialog */}
+      <Dialog
+        open={privacyOpen}
+        onClose={() => setPrivacyOpen(false)}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+      >
+        <DialogTitle sx={{ m: 0, p: 2, pr: 6 }}>
+          Privacy Policy
+          <IconButton
+            onClick={() => setPrivacyOpen(false)}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <PrivacyPolicyContent />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPrivacyOpen(false)} variant="contained">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
