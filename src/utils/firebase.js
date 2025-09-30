@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -16,7 +17,8 @@ const requiredEnvVars = [
   'VITE_FIREBASE_API_KEY',
   'VITE_FIREBASE_AUTH_DOMAIN',
   'VITE_FIREBASE_PROJECT_ID',
-  'VITE_FIREBASE_APP_ID'
+  'VITE_FIREBASE_APP_ID',
+  'VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(
@@ -33,5 +35,11 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
+
+// Initialize App Check with reCAPTCHA v3
+export const appCheck = initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider(import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY),
+  isTokenAutoRefreshEnabled: true // Automatically refresh tokens
+});
 
 export default app;

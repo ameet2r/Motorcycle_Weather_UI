@@ -1,8 +1,9 @@
-import { auth } from './firebase';
+import { auth, appCheck } from './firebase';
 import { getIdToken } from 'firebase/auth';
+import { getToken } from 'firebase/app-check';
 
 /**
- * Makes an authenticated API request with Firebase ID token
+ * Makes an authenticated API request with Firebase ID token and App Check token
  * @param {string} endpoint - API endpoint (relative to VITE_BACKEND_API)
  * @param {object} options - Fetch options (method, body, etc.)
  * @returns {Promise<Response>} - Fetch response
@@ -18,10 +19,15 @@ export const authenticatedFetch = async (endpoint, options = {}) => {
     // Get the ID token
     const idToken = await getIdToken(user);
 
+    // Get the App Check token
+    const appCheckTokenResponse = await getToken(appCheck, /* forceRefresh */ false);
+    const appCheckToken = appCheckTokenResponse.token;
+
     // Prepare headers
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${idToken}`,
+      'X-Firebase-AppCheck': appCheckToken,
       ...options.headers
     };
 
@@ -36,18 +42,22 @@ export const authenticatedFetch = async (endpoint, options = {}) => {
       // Token might be expired, try to refresh
       try {
         const refreshedToken = await getIdToken(user, true); // Force refresh
+        const refreshedAppCheckTokenResponse = await getToken(appCheck, /* forceRefresh */ true);
+        const refreshedAppCheckToken = refreshedAppCheckTokenResponse.token;
+
         const retryResponse = await fetch(`${import.meta.env.VITE_BACKEND_API}${endpoint}`, {
           ...options,
           headers: {
             ...headers,
-            'Authorization': `Bearer ${refreshedToken}`
+            'Authorization': `Bearer ${refreshedToken}`,
+            'X-Firebase-AppCheck': refreshedAppCheckToken
           }
         });
-        
+
         if (retryResponse.status === 401) {
           throw new Error('Authentication failed. Please log in again.');
         }
-        
+
         return retryResponse;
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
@@ -62,18 +72,18 @@ export const authenticatedFetch = async (endpoint, options = {}) => {
     return response;
   } catch (error) {
     console.error('API request error:', error);
-    
+
     // Re-throw authentication errors
-    if (error.message.includes('Authentication failed') || 
+    if (error.message.includes('Authentication failed') ||
         error.message.includes('No authenticated user')) {
       throw error;
     }
-    
+
     // Handle network errors
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       throw new Error('Network error. Please check your connection and try again.');
     }
-    
+
     // Generic error
     throw new Error('An error occurred while making the request. Please try again.');
   }
