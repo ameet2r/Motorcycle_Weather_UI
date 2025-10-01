@@ -37,7 +37,7 @@ export const UserProvider = ({ children }) => {
       const profile = await authenticatedGet('/user/profile');
       setUserProfile(profile);
     } catch (err) {
-      console.error('Failed to fetch user profile:', err);
+      console.error('Failed to fetch user profile');
       setError(err.message);
 
       // If authentication fails, log the user out
