@@ -26,8 +26,7 @@ const missingEnvVars = requiredEnvVars.filter(
 );
 
 if (missingEnvVars.length > 0) {
-  console.error('Missing required Firebase environment variables:', missingEnvVars);
-  throw new Error(`Missing Firebase configuration: ${missingEnvVars.join(', ')}`);
+  throw new Error('Missing required Firebase configuration. Please check your environment variables.');
 }
 
 // Initialize Firebase
