@@ -24,6 +24,8 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SearchIcon from "@mui/icons-material/Search";
 import InfoIcon from "@mui/icons-material/Info";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
+import CircularProgress from "@mui/material/CircularProgress";
 
 export default function LocationForm({ onSubmit, initialLocations = [] }) {
   const [locations, setLocations] = useState(
@@ -40,6 +42,8 @@ export default function LocationForm({ onSubmit, initialLocations = [] }) {
       : [{ latitude: "", longitude: "", address: "", inputType: "coordinates" }]
   );
   const [errors, setErrors] = useState([]);
+  const [geolocationLoading, setGeolocationLoading] = useState({});
+  const [geolocationError, setGeolocationError] = useState({});
 
   useEffect(() => {
     if (initialLocations.length > 0) {
@@ -140,6 +144,85 @@ const validateLocation = (location) => {
 
   return error;
 };
+
+  const handleGetCurrentLocation = (index) => {
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+      setGeolocationError({
+        ...geolocationError,
+        [index]: "Geolocation is not supported by your browser"
+      });
+      return;
+    }
+
+    // Clear any previous error
+    setGeolocationError({
+      ...geolocationError,
+      [index]: null
+    });
+
+    // Set loading state
+    setGeolocationLoading({
+      ...geolocationLoading,
+      [index]: true
+    });
+
+    // Get current position
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+
+        // Update location with current coordinates
+        const newLocations = [...locations];
+        newLocations[index].latitude = latitude.toString();
+        newLocations[index].longitude = longitude.toString();
+        setLocations(newLocations);
+
+        // Validate the new coordinates
+        const newErrors = newLocations.map(validateLocation);
+        setErrors(newErrors);
+
+        // Clear loading state
+        setGeolocationLoading({
+          ...geolocationLoading,
+          [index]: false
+        });
+      },
+      (error) => {
+        // Handle errors
+        let errorMessage = "Unable to retrieve your location";
+
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "Location permission denied. Please enable location access in your browser settings.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location information is unavailable.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Location request timed out.";
+            break;
+          default:
+            errorMessage = "An unknown error occurred while retrieving location.";
+        }
+
+        setGeolocationError({
+          ...geolocationError,
+          [index]: errorMessage
+        });
+
+        setGeolocationLoading({
+          ...geolocationLoading,
+          [index]: false
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
 
   // handle form submission
   const handleSubmit = (e) => {
@@ -313,50 +396,82 @@ const validateLocation = (location) => {
 
                   {/* Conditional Inputs */}
                   {loc.inputType === 'coordinates' && (
-                    <Stack
-                      direction={{ xs: 'column', sm: 'row' }}
-                      spacing={2}
-                      alignItems="flex-start"
-                    >
-                      <TextField
-                        label="Latitude"
-                        type="text"
-                        value={loc.latitude}
-                        onChange={(e) => handleChange(index, "latitude", e.target.value)}
-                        error={!!errors[index]?.latitude}
-                        helperText={errors[index]?.latitude || "e.g., 40.7128"}
-                        fullWidth
-                        placeholder="Enter latitude"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            '&.Mui-focused': {
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'primary.main'
+                    <>
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={2}
+                        alignItems="flex-start"
+                      >
+                        <TextField
+                          label="Latitude"
+                          type="text"
+                          value={loc.latitude}
+                          onChange={(e) => handleChange(index, "latitude", e.target.value)}
+                          error={!!errors[index]?.latitude}
+                          helperText={errors[index]?.latitude || "e.g., 40.7128"}
+                          fullWidth
+                          placeholder="Enter latitude"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&.Mui-focused': {
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'primary.main'
+                                }
                               }
                             }
-                          }
-                        }}
-                      />
-                      <TextField
-                        label="Longitude"
-                        type="text"
-                        value={loc.longitude}
-                        onChange={(e) => handleChange(index, "longitude", e.target.value)}
-                        error={!!errors[index]?.longitude}
-                        helperText={errors[index]?.longitude || "e.g., -74.0060"}
-                        fullWidth
-                        placeholder="Enter longitude"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            '&.Mui-focused': {
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'primary.main'
+                          }}
+                        />
+                        <TextField
+                          label="Longitude"
+                          type="text"
+                          value={loc.longitude}
+                          onChange={(e) => handleChange(index, "longitude", e.target.value)}
+                          error={!!errors[index]?.longitude}
+                          helperText={errors[index]?.longitude || "e.g., -74.0060"}
+                          fullWidth
+                          placeholder="Enter longitude"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&.Mui-focused': {
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'primary.main'
+                                }
                               }
                             }
-                          }
-                        }}
-                      />
-                    </Stack>
+                          }}
+                        />
+                      </Stack>
+
+                      {/* Use Current Location Button */}
+                      <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <Button
+                          variant="outlined"
+                          size="medium"
+                          startIcon={geolocationLoading[index] ? <CircularProgress size={20} /> : <MyLocationIcon />}
+                          onClick={() => handleGetCurrentLocation(index)}
+                          disabled={geolocationLoading[index]}
+                          sx={{
+                            textTransform: 'none',
+                            borderRadius: 2,
+                            px: 3,
+                            '&:hover': {
+                              backgroundColor: 'primary.main',
+                              color: 'primary.contrastText',
+                              borderColor: 'primary.main'
+                            }
+                          }}
+                        >
+                          {geolocationLoading[index] ? 'Getting Location...' : 'Use My Current Location'}
+                        </Button>
+
+                        {/* Geolocation Error Alert */}
+                        {geolocationError[index] && (
+                          <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
+                            {geolocationError[index]}
+                          </Alert>
+                        )}
+                      </Box>
+                    </>
                   )}
 
                   {loc.inputType === 'address' && (
