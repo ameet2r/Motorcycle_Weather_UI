@@ -13,7 +13,8 @@ import {
   Backdrop,
 } from "@mui/material";
 import LocationForm from "../components/LocationForm";
-import { saveSearchToHistory, generateSearchId } from "../utils/localStorage";
+import { generateSearchId } from "../utils/localStorage";
+import { saveSearch } from "../utils/searchStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
 import { authenticatedPost, isAuthError } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -48,6 +49,7 @@ export default function NewSearchPage() {
   const { membershipTier } = useUser();
 
   const initialCoordinates = location.state?.coordinates || [];
+  const originalSearchId = location.state?.originalSearchId || null;
 
   async function fetchWeather(locations) {
     setLoading(true);
@@ -81,7 +83,7 @@ export default function NewSearchPage() {
           latitude: key.split(':')[0],
           longitude: key.split(':')[1],
           address: addressMap[key] || "",
-          elevation: forecast.elevation ? forecast.elevation : "",
+          elevation: forecast.elevation ? String(forecast.elevation) : "",
           periods: forecast.periods,
           summary: generateCoordinateSummary(forecast, key.split(':')[0], key.split(':')[1])
         };
@@ -96,16 +98,12 @@ export default function NewSearchPage() {
         coordinates: coordinatesData
       };
 
-      // Save to localStorage
-      const saved = saveSearchToHistory(searchData, membershipTier);
-      
-      if (saved) {
-        setLoadingStep('Complete!');
-        setSuccess(true);
-        navigate('/previous-searches');
-      } else {
-        throw new Error('Failed to save search results');
-      }
+      // Save to appropriate storage and delete duplicates/original (localStorage for free, backend for plus/pro)
+      await saveSearch(searchData, membershipTier, originalSearchId);
+
+      setLoadingStep('Complete!');
+      setSuccess(true);
+      navigate('/previous-searches');
 
     } catch (err) {
       console.error("Error fetching weather:", err);

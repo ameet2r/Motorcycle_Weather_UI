@@ -37,7 +37,8 @@ import Brightness3Icon from '@mui/icons-material/Brightness3';
 import WbTwilightIcon from '@mui/icons-material/WbTwilight';
 import Brightness6Icon from '@mui/icons-material/Brightness6';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
-import { getSearchById } from "../utils/localStorage";
+import { getSearchByIdFromStorage } from "../utils/searchStorage";
+import { useUser } from "../contexts/UserContext";
 import {
   formatTemperatureRange,
   formatWindRange,
@@ -51,6 +52,7 @@ import { formatDateTime, formatPeriodTime, isCurrentPeriod } from "../utils/date
 export default function ForecastDetailsPage() {
   const { searchId } = useParams();
   const navigate = useNavigate();
+  const { membershipTier } = useUser();
   const [search, setSearch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -63,9 +65,9 @@ export default function ForecastDetailsPage() {
   const loadSearchDetails = () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const searchData = getSearchById(searchId);
+      const searchData = getSearchByIdFromStorage(searchId, membershipTier);
       if (!searchData) {
         setError('Search not found. It may have been deleted or expired.');
       } else {

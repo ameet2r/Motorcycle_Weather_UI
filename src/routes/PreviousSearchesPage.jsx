@@ -23,7 +23,8 @@ import InfoIcon from "@mui/icons-material/Info";
 import CloudIcon from '@mui/icons-material/Cloud';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import { getSearchHistory, clearSearchHistory, saveSearchToHistory, generateSearchId } from "../utils/localStorage";
+import { generateSearchId } from "../utils/localStorage";
+import { getAllSearches, clearAllSearches, saveSearch, syncSearchesFromBackend } from "../utils/searchStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
 import { authenticatedPost, isAuthError } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -61,13 +62,17 @@ export default function PreviousSearchesPage() {
     loadSearchHistory();
   }, []);
 
-  const loadSearchHistory = () => {
+  const loadSearchHistory = async () => {
     setLoading(true);
     try {
-      const history = getSearchHistory();
+      // Sync from backend for plus/pro users, use localStorage for free users
+      const history = await syncSearchesFromBackend(membershipTier);
       setSearches(history);
     } catch (error) {
       console.error('Error loading search history:', error);
+      // Fallback to local cache if sync fails
+      const localHistory = getAllSearches(membershipTier);
+      setSearches(localHistory);
     } finally {
       setLoading(false);
     }
@@ -77,13 +82,15 @@ export default function PreviousSearchesPage() {
     navigate(`/forecast/${searchId}`);
   };
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     if (window.confirm('Are you sure you want to clear all search history? This action cannot be undone.')) {
-      const success = clearSearchHistory();
-      if (success) {
+      try {
+        await clearAllSearches(membershipTier);
         setSearches([]);
-      } else {
-        console.error('Failed to clear search history');
+      } catch (error) {
+        console.error('Failed to clear search history:', error);
+        // Show error to user
+        setRedoError('Failed to clear search history. Please try again.');
       }
     }
   };
@@ -93,7 +100,7 @@ export default function PreviousSearchesPage() {
   };
 
   const handleEditSearch = (search) => {
-    navigate('/', { state: { coordinates: search.coordinates } });
+    navigate('/', { state: { coordinates: search.coordinates, originalSearchId: search.id } });
   };
 
   const handleRedoSearch = async (search) => {
@@ -141,7 +148,7 @@ export default function PreviousSearchesPage() {
           latitude: key.split(':')[0],
           longitude: key.split(':')[1],
           address: addressMap[key] || "",
-          elevation: forecast.elevation ? forecast.elevation : "",
+          elevation: forecast.elevation ? String(forecast.elevation) : "",
           periods: forecast.periods,
           summary: generateCoordinateSummary(forecast, key.split(':')[0], key.split(':')[1])
         };
@@ -156,21 +163,17 @@ export default function PreviousSearchesPage() {
         coordinates: coordinatesData
       };
 
-      // Save to localStorage
-      const saved = saveSearchToHistory(searchData, membershipTier);
-      
-      if (saved) {
-        setRedoLoadingStep('Complete!');
-        setRedoSuccess(true);
-        
-        // Reload search history to show the new search
-        loadSearchHistory();
-        
-        // Navigate to the new search details
-        navigate(`/forecast/${searchData.id}`);
-      } else {
-        throw new Error('Failed to save search results');
-      }
+      // Save to appropriate storage and delete the original search (localStorage for free, backend for plus/pro)
+      await saveSearch(searchData, membershipTier, search.id);
+
+      setRedoLoadingStep('Complete!');
+      setRedoSuccess(true);
+
+      // Reload search history to show the new search
+      await loadSearchHistory();
+
+      // Navigate to the new search details
+      navigate(`/forecast/${searchData.id}`);
 
     } catch (err) {
       console.error("Error redoing search:", err);
@@ -415,8 +418,17 @@ export default function PreviousSearchesPage() {
               }}
             >
               <Typography variant="body2">
-                <strong>Data Storage:</strong> Search history is stored locally in your browser.
-                Clearing your browser cache or data will remove this information.
+                {membershipTier === 'plus' || membershipTier === 'pro' ? (
+                  <>
+                    <strong>Cloud Sync:</strong> Your search history is synced across all your devices.
+                    Searches are stored securely in the cloud and cached locally for fast access.
+                  </>
+                ) : (
+                  <>
+                    <strong>Data Storage:</strong> Search history is stored locally in your browser.
+                    Clearing your browser cache or data will remove this information.
+                  </>
+                )}
               </Typography>
             </Alert>
           </Fade>

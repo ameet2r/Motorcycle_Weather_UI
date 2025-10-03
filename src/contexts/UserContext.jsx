@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { onIdTokenChanged } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 import { authenticatedGet } from '../utils/api';
 import { useAuth } from './AuthContext';
+import { migrateSearchesToBackend } from '../utils/searchStorage';
 
 // Create the user context
 const UserContext = createContext({});
@@ -22,6 +23,7 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user, logout } = useAuth();
+  const previousTierRef = useRef(null);
 
   // Function to fetch user profile
   const fetchUserProfile = useCallback(async () => {
@@ -66,6 +68,33 @@ export const UserProvider = ({ children }) => {
 
     return unsubscribe;
   }, [fetchUserProfile]);
+
+  // Migrate searches when user upgrades from free to plus/pro
+  useEffect(() => {
+    const currentTier = userProfile?.membershipTier;
+    const previousTier = previousTierRef.current;
+
+    // Check if user just upgraded from free to plus/pro
+    if (previousTier === 'free' && (currentTier === 'plus' || currentTier === 'pro')) {
+      const performMigration = async () => {
+        try {
+          const result = await migrateSearchesToBackend(currentTier);
+          if (result.migrated > 0) {
+            console.log(`Successfully migrated ${result.migrated} searches to the cloud`);
+          }
+        } catch (err) {
+          console.error('Error migrating searches:', err);
+        }
+      };
+
+      performMigration();
+    }
+
+    // Update the previous tier ref
+    if (currentTier) {
+      previousTierRef.current = currentTier;
+    }
+  }, [userProfile?.membershipTier]);
 
   // Context value
   const value = {
