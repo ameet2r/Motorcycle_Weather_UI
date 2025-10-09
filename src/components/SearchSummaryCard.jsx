@@ -11,6 +11,7 @@ import {
   IconButton,
   Tooltip,
   Badge,
+  CircularProgress,
 } from "@mui/material";
 import {
   formatTemperatureRange,
@@ -29,13 +30,14 @@ import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import LaunchIcon from '@mui/icons-material/Launch';
 import ReplayIcon from '@mui/icons-material/Replay';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import Brightness3Icon from '@mui/icons-material/Brightness3';
 import WbTwilightIcon from '@mui/icons-material/WbTwilight';
 import Brightness6Icon from '@mui/icons-material/Brightness6';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 
-export default function SearchSummaryCard({ search, onClick, onEditSearch, onRedoSearch, isRedoing }) {
+export default function SearchSummaryCard({ search, onClick, onEditSearch, onRedoSearch, onDeleteSearch, isRedoing, isDeleting }) {
 
 
   const formatCoordinates = (coordinates) => {
@@ -102,6 +104,28 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
                 }}
               >
                 <EditIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete Search">
+              <IconButton
+                onClick={() => onDeleteSearch(search)}
+                disabled={isDeleting}
+                sx={{
+                  color: 'error.main',
+                  '&:hover': {
+                    backgroundColor: 'error.main',
+                    color: 'error.contrastText'
+                  },
+                  '&.Mui-disabled': {
+                    color: 'action.disabled'
+                  }
+                }}
+              >
+                {isDeleting ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <DeleteIcon sx={{ fontSize: 20 }} />
+                )}
               </IconButton>
             </Tooltip>
             <Tooltip title="Redo Search">

@@ -24,8 +24,9 @@ import CloudIcon from '@mui/icons-material/Cloud';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import { generateSearchId } from "../utils/localStorage";
-import { getAllSearches, clearAllSearches, saveSearch, syncSearchesFromBackend } from "../utils/searchStorage";
+import { getAllSearches, clearAllSearches, deleteSearch, saveSearch, syncSearchesFromBackend } from "../utils/searchStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
+import { formatDateTime } from "../utils/dateTimeFormatters";
 import { authenticatedPost, isAuthError } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useUser } from "../contexts/UserContext";
@@ -54,6 +55,7 @@ export default function PreviousSearchesPage() {
   const [redoError, setRedoError] = useState(null);
   const [redoSuccess, setRedoSuccess] = useState(false);
   const [redoingSearchId, setRedoingSearchId] = useState(null);
+  const [deletingSearchId, setDeletingSearchId] = useState(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { membershipTier } = useUser();
@@ -91,6 +93,23 @@ export default function PreviousSearchesPage() {
         console.error('Failed to clear search history:', error);
         // Show error to user
         setRedoError('Failed to clear search history. Please try again.');
+      }
+    }
+  };
+
+  const handleDeleteSearch = async (search) => {
+    if (window.confirm(`Are you sure you want to delete this search from ${formatDateTime(search.timestamp)}?`)) {
+      setDeletingSearchId(search.id);
+      try {
+        await deleteSearch(search.id, membershipTier);
+        // Remove from local state
+        setSearches(prevSearches => prevSearches.filter(s => s.id !== search.id));
+      } catch (error) {
+        console.error('Failed to delete search:', error);
+        // Show error to user
+        setRedoError('Failed to delete search. Please try again.');
+      } finally {
+        setDeletingSearchId(null);
       }
     }
   };
@@ -365,8 +384,10 @@ export default function PreviousSearchesPage() {
                       search={search}
                       onClick={handleSearchClick}
                       onEditSearch={handleEditSearch}
+                      onDeleteSearch={handleDeleteSearch}
                       onRedoSearch={handleRedoSearch}
                       isRedoing={redoingSearchId === search.id}
+                      isDeleting={deletingSearchId === search.id}
                     />
                   </div>
                 </Fade>
