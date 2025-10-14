@@ -20,9 +20,11 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Fade,
   Skeleton,
+  Tabs,
+  Tab,
 } from "@mui/material";
+import { TabContext, TabPanel } from "@mui/lab";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
@@ -57,6 +59,7 @@ export default function ForecastDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedDays, setExpandedDays] = useState(new Set());
+  const [activeTab, setActiveTab] = useState("0");
 
   useEffect(() => {
     loadSearchDetails();
@@ -85,6 +88,10 @@ export default function ForecastDetailsPage() {
     navigate('/previous-searches');
   };
 
+  const handleTabChange = (_event, newValue) => {
+    setActiveTab(newValue);
+  };
+
 
   const createPeriodToDateMapping = (periods) => {
     const mapping = {};
@@ -109,7 +116,7 @@ export default function ForecastDetailsPage() {
     return mapping;
   };
 
-  const handleDayClick = (selectedDate, coordIndex) => {
+  const handleDayClick = (selectedDate) => {
     const newExpandedDays = new Set(expandedDays);
     if (newExpandedDays.has(selectedDate)) {
       newExpandedDays.delete(selectedDate);
@@ -228,10 +235,47 @@ export default function ForecastDetailsPage() {
           />
         </Box>
 
-        {/* Location Forecasts */}
-        <Stack spacing={4}>
+        {/* Location Tabs */}
+        <TabContext value={activeTab}>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+              sx={{
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  minHeight: 64,
+                  px: 3,
+                },
+                '& .MuiTabs-scrollButtons': {
+                  '&.Mui-disabled': { opacity: 0.3 }
+                }
+              }}
+            >
+              {search.coordinates.map((coord, coordIndex) => {
+                const locationLabel = coord.address
+                  ? coord.address.split(',')[0] // Get first part of address (usually city)
+                  : `Location ${coordIndex + 1}`;
+                return (
+                  <Tab
+                    key={coordIndex}
+                    label={locationLabel}
+                    value={String(coordIndex)}
+                    icon={<LocationOnIcon />}
+                    iconPosition="start"
+                  />
+                );
+              })}
+            </Tabs>
+          </Box>
+
           {search.coordinates.map((coord, coordIndex) => (
-            <Fade in={true} key={coordIndex}>
+            <TabPanel key={coordIndex} value={String(coordIndex)} sx={{ p: 0 }}>
               <Card
                 sx={{
                   borderRadius: 3,
@@ -307,7 +351,7 @@ export default function ForecastDetailsPage() {
                             <Accordion
                               key={date}
                               expanded={expandedDays.has(date)}
-                              onChange={() => handleDayClick(date, coordIndex)}
+                              onChange={() => handleDayClick(date)}
                               sx={{
                                 borderRadius: 2,
                                 border: '1px solid',
@@ -321,7 +365,7 @@ export default function ForecastDetailsPage() {
                             >
                               <AccordionSummary
                                 expandIcon={<ExpandMoreIcon />}
-                                onClick={() => handleDayClick(date, coordIndex)}
+                                onClick={() => handleDayClick(date)}
                                 sx={{
                                   borderRadius: 2,
                                   '&.Mui-expanded': {
@@ -488,9 +532,9 @@ export default function ForecastDetailsPage() {
                   </Box>
                 </CardContent>
               </Card>
-            </Fade>
+            </TabPanel>
           ))}
-        </Stack>
+        </TabContext>
       </Stack>
     </Box>
   );
