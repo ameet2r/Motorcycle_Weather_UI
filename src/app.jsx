@@ -357,11 +357,11 @@ function ProtectedApp() {
         <NavigationBar />
 
         <Container
-          maxWidth="lg"
+          maxWidth="xl"
           sx={{
             flex: 1,
-            py: { xs: 3, sm: 4 },
-            px: { xs: 2, sm: 3 }
+            py: { xs: 2, sm: 4 },
+            px: { xs: 0, sm: 3 }
           }}
           className="fade-in"
         >
