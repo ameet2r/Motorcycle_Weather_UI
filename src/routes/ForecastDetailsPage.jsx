@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Typography,
@@ -6,27 +6,19 @@ import {
   Button,
   Card,
   CardContent,
-  List,
-  ListItem,
-  ListItemText,
   Box,
   Chip,
   Paper,
   Alert,
   Grid,
-  Divider,
   Avatar,
   Tooltip,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Skeleton,
   Tabs,
   Tab,
 } from "@mui/material";
 import { TabContext, TabPanel } from "@mui/lab";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import ThermostatIcon from "@mui/icons-material/Thermostat";
 import AirIcon from "@mui/icons-material/Air";
@@ -58,8 +50,8 @@ export default function ForecastDetailsPage() {
   const [search, setSearch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedDays, setExpandedDays] = useState(new Set());
   const [activeTab, setActiveTab] = useState("0");
+  const [activeDayTabs, setActiveDayTabs] = useState({});
 
   useEffect(() => {
     loadSearchDetails();
@@ -75,6 +67,15 @@ export default function ForecastDetailsPage() {
         setError('Search not found. It may have been deleted or expired.');
       } else {
         setSearch(searchData);
+        // Initialize the first day for each location
+        const initialDayTabs = {};
+        searchData.coordinates.forEach((coord, index) => {
+          const dates = Object.keys(coord.summary.dailySummaries).sort();
+          if (dates.length > 0) {
+            initialDayTabs[index] = dates[0];
+          }
+        });
+        setActiveDayTabs(initialDayTabs);
       }
     } catch (err) {
       console.error('Error loading search details:', err);
@@ -90,6 +91,13 @@ export default function ForecastDetailsPage() {
 
   const handleTabChange = (_event, newValue) => {
     setActiveTab(newValue);
+  };
+
+  const handleDayTabChange = (locationIndex, newDayValue) => {
+    setActiveDayTabs(prev => ({
+      ...prev,
+      [locationIndex]: newDayValue
+    }));
   };
 
 
@@ -114,16 +122,6 @@ export default function ForecastDetailsPage() {
       }
     });
     return mapping;
-  };
-
-  const handleDayClick = (selectedDate) => {
-    const newExpandedDays = new Set(expandedDays);
-    if (newExpandedDays.has(selectedDate)) {
-      newExpandedDays.delete(selectedDate);
-    } else {
-      newExpandedDays.add(selectedDate);
-    }
-    setExpandedDays(newExpandedDays);
   };
 
   if (loading) {
@@ -335,200 +333,233 @@ export default function ForecastDetailsPage() {
                     </Grid>
                   </Box>
 
-                  {/* Daily Summaries */}
+                  {/* Day Tabs */}
                   <Box sx={{ p: 3 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                      Daily Weather Summary
-                    </Typography>
-                    <Stack spacing={2}>
+                    <TabContext value={activeDayTabs[coordIndex] || ""}>
+                      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                        <Tabs
+                          value={activeDayTabs[coordIndex] || ""}
+                          onChange={(_e, newValue) => handleDayTabChange(coordIndex, newValue)}
+                          variant="scrollable"
+                          scrollButtons="auto"
+                          allowScrollButtonsMobile
+                          sx={{
+                            '& .MuiTab-root': {
+                              textTransform: 'none',
+                              fontWeight: 500,
+                              fontSize: '0.875rem',
+                              minHeight: 48,
+                              px: 2,
+                            },
+                            '& .MuiTabs-scrollButtons': {
+                              '&.Mui-disabled': { opacity: 0.3 }
+                            }
+                          }}
+                        >
+                          {Object.entries(coord.summary.dailySummaries)
+                            .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+                            .map(([date]) => (
+                              <Tab
+                                key={date}
+                                label={formatDateWithRelativeDay(date)}
+                                value={date}
+                                icon={<CalendarTodayIcon sx={{ fontSize: 16 }} />}
+                                iconPosition="start"
+                              />
+                            ))}
+                        </Tabs>
+                      </Box>
+
                       {Object.entries(coord.summary.dailySummaries)
                         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
                         .map(([date, daySummary]) => {
                           const periodMapping = createPeriodToDateMapping(coord.periods);
                           const periodIndices = periodMapping[date];
                           const periods = periodIndices ? periodIndices.map(i => coord.periods[i]) : [];
+
                           return (
-                            <Accordion
-                              key={date}
-                              expanded={expandedDays.has(date)}
-                              onChange={() => handleDayClick(date)}
-                              sx={{
-                                borderRadius: 2,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                '&:before': { display: 'none' },
-                                '&.Mui-expanded': {
-                                  borderColor: 'primary.main',
-                                  boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)'
-                                }
-                              }}
-                            >
-                              <AccordionSummary
-                                expandIcon={<ExpandMoreIcon />}
-                                onClick={() => handleDayClick(date)}
+                            <TabPanel key={date} value={date} sx={{ p: 0 }}>
+                              {/* Day Summary Card */}
+                              <Paper
                                 sx={{
+                                  p: 3,
+                                  mb: 3,
                                   borderRadius: 2,
-                                  '&.Mui-expanded': {
-                                    borderBottomLeftRadius: 0,
-                                    borderBottomRightRadius: 0
-                                  },
-                                  cursor: 'pointer',
-                                  '&:hover': {
-                                    backgroundColor: 'action.hover'
-                                  }
+                                  background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.03) 0%, rgba(66, 165, 245, 0.03) 100%)',
+                                  border: '1px solid',
+                                  borderColor: 'divider'
                                 }}
                               >
-                                <Box sx={{ width: '100%' }}>
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                                    {formatDateWithRelativeDay(date)}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                                    {daySummary.periodCount} forecast periods
-                                  </Typography>
-
-                                  <Stack spacing={1.5}>
+                                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                                  Daily Summary
+                                </Typography>
+                                <Grid container spacing={3}>
+                                  <Grid size={{ xs: 12, sm: 4 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      <ThermostatIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                                      <Typography variant="body2">
-                                        <strong>Temperature:</strong> {formatTemperatureRange(daySummary.tempRange)}
-                                      </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      <AirIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
-                                      <Typography variant="body2">
-                                        <strong>Wind:</strong> {formatWindRange(daySummary.windRange)}
-                                      </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      <WaterDropIcon sx={{ fontSize: 18, color: 'info.main' }} />
-                                      <Typography variant="body2">
-                                        <strong>Precipitation:</strong> {formatPrecipitationRange(daySummary.precipRange)}
-                                      </Typography>
-                                    </Box>
-                                    
-                                    {/* Solar Information */}
-                                    {daySummary.solarInfo && (
-                                      <Box sx={{ mt: 2 }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                                          Solar Information:
+                                      <ThermostatIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                                      <Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                          Temperature
                                         </Typography>
-                                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                          {formatSolarInfoDetailed(daySummary.solarInfo).map((solarEvent, solarIndex) => {
-                                            const getSolarIcon = (eventType) => {
-                                              switch (eventType) {
-                                                case 'sunrise':
-                                                  return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
-                                                case 'sunset':
-                                                  return <Brightness3Icon sx={{ fontSize: '14px !important' }} />;
-                                                case 'solarNoon':
-                                                  return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
-                                                case 'dawn':
-                                                  return <Brightness6Icon sx={{ fontSize: '14px !important' }} />;
-                                                case 'dusk':
-                                                  return <Brightness4Icon sx={{ fontSize: '14px !important' }} />;
-                                                case 'goldenHours':
-                                                  return <WbTwilightIcon sx={{ fontSize: '14px !important' }} />;
-                                                default:
-                                                  return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
-                                              }
-                                            };
-
-                                            return (
-                                              <Tooltip key={solarIndex} title={`${solarEvent.label}: ${solarEvent.time}`}>
-                                                <Chip
-                                                  icon={getSolarIcon(solarEvent.type)}
-                                                  label={`${solarEvent.label}: ${solarEvent.time}`}
-                                                  size="small"
-                                                  variant="outlined"
-                                                  color={getSolarEventColor(solarEvent.type)}
-                                                  sx={{
-                                                    fontSize: '0.75rem',
-                                                    height: '24px',
-                                                    '& .MuiChip-icon': { fontSize: 14 }
-                                                  }}
-                                                />
-                                              </Tooltip>
-                                            );
-                                          })}
-                                        </Stack>
+                                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                          {formatTemperatureRange(daySummary.tempRange)}
+                                        </Typography>
                                       </Box>
-                                    )}
-                                  </Stack>
-                                </Box>
-                              </AccordionSummary>
-                              <AccordionDetails sx={{ pt: 0 }}>
-                                <Grid container spacing={2}>
-                                  {periods.map((period, idx) => (
-                                    <Grid key={idx} size={{ xs: 12, sm: 6, md: 4 }}>
-                                      <Paper
-                                        sx={{
-                                          p: 2,
-                                          borderRadius: 2,
-                                          border: '1px solid',
-                                          borderColor: 'divider',
-                                          backgroundColor: 'background.paper',
-                                          ...(isCurrentPeriod(period.start_time, period.end_time) && {
-                                            border: '2px solid',
-                                            borderColor: 'primary.main',
-                                            boxShadow: '0 0 8px rgba(25, 118, 210, 0.3)',
-                                            position: 'relative'
-                                          })
-                                        }}
-                                      >
-                                        <Stack spacing={1}>
-                                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                            {formatPeriodTime(period.start_time, period.end_time)}
-                                          </Typography>
-                                          <Box sx={{ display: 'flex', gap: 2 }}>
-                                            <Stack spacing={0.5}>
-                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <ThermostatIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                                                <Typography variant="body2">{period.temperature}°F</Typography>
-                                              </Box>
-                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <AirIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
-                                                <Typography variant="body2">{period.wind_direction} {period.wind_speed}</Typography>
-                                              </Box>
-                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <WaterDropIcon sx={{ fontSize: 16, color: 'info.main' }} />
-                                                <Typography variant="body2">{period.probability_of_precip ?? 0}% chance</Typography>
-                                              </Box>
-                                            </Stack>
-                                            <Stack spacing={1} sx={{ alignItems: 'center' }}>
+                                    </Box>
+                                  </Grid>
+                                  <Grid size={{ xs: 12, sm: 4 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <AirIcon sx={{ fontSize: 20, color: 'secondary.main' }} />
+                                      <Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                          Wind
+                                        </Typography>
+                                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                          {formatWindRange(daySummary.windRange)}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  </Grid>
+                                  <Grid size={{ xs: 12, sm: 4 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <WaterDropIcon sx={{ fontSize: 20, color: 'info.main' }} />
+                                      <Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                          Precipitation
+                                        </Typography>
+                                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                          {formatPrecipitationRange(daySummary.precipRange)}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  </Grid>
+                                </Grid>
+
+                                {/* Solar Information */}
+                                {daySummary.solarInfo && (
+                                  <Box sx={{ mt: 3 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
+                                      Solar Information
+                                    </Typography>
+                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                      {formatSolarInfoDetailed(daySummary.solarInfo).map((solarEvent, solarIndex) => {
+                                        const getSolarIcon = (eventType) => {
+                                          switch (eventType) {
+                                            case 'sunrise':
+                                              return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                            case 'sunset':
+                                              return <Brightness3Icon sx={{ fontSize: '14px !important' }} />;
+                                            case 'solarNoon':
+                                              return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                            case 'dawn':
+                                              return <Brightness6Icon sx={{ fontSize: '14px !important' }} />;
+                                            case 'dusk':
+                                              return <Brightness4Icon sx={{ fontSize: '14px !important' }} />;
+                                            case 'goldenHours':
+                                              return <WbTwilightIcon sx={{ fontSize: '14px !important' }} />;
+                                            default:
+                                              return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
+                                          }
+                                        };
+
+                                        return (
+                                          <Tooltip key={solarIndex} title={`${solarEvent.label}: ${solarEvent.time}`}>
+                                            <Chip
+                                              icon={getSolarIcon(solarEvent.type)}
+                                              label={`${solarEvent.label}: ${solarEvent.time}`}
+                                              size="small"
+                                              variant="outlined"
+                                              color={getSolarEventColor(solarEvent.type)}
+                                              sx={{
+                                                fontSize: '0.75rem',
+                                                height: '24px',
+                                                '& .MuiChip-icon': { fontSize: 14 }
+                                              }}
+                                            />
+                                          </Tooltip>
+                                        );
+                                      })}
+                                    </Stack>
+                                  </Box>
+                                )}
+                              </Paper>
+
+                              {/* Period Details */}
+                              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                                Forecast Periods ({daySummary.periodCount})
+                              </Typography>
+                              <Grid container spacing={2}>
+                                {periods.map((period, idx) => (
+                                  <Grid key={idx} size={{ xs: 12, sm: 6, md: 4 }}>
+                                    <Paper
+                                      sx={{
+                                        p: 2,
+                                        borderRadius: 2,
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        backgroundColor: 'background.paper',
+                                        height: '100%',
+                                        ...(isCurrentPeriod(period.start_time, period.end_time) && {
+                                          border: '2px solid',
+                                          borderColor: 'primary.main',
+                                          boxShadow: '0 0 8px rgba(25, 118, 210, 0.3)',
+                                          position: 'relative'
+                                        })
+                                      }}
+                                    >
+                                      <Stack spacing={1.5}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                          {formatPeriodTime(period.start_time, period.end_time)}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between' }}>
+                                          <Stack spacing={0.5} sx={{ flex: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                              <ThermostatIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                                              <Typography variant="body2">{period.temperature}°F</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                              <AirIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
+                                              <Typography variant="body2">{period.wind_direction} {period.wind_speed}</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                              <WaterDropIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                                              <Typography variant="body2">{period.probability_of_precip ?? 0}% chance</Typography>
+                                            </Box>
+                                          </Stack>
+                                          {period.icon && (
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                                              <img
+                                                src={period.icon}
+                                                alt={period.short_forecast || "weather icon"}
+                                                style={{
+                                                  width: '48px',
+                                                  height: '48px',
+                                                  borderRadius: '8px',
+                                                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                                }}
+                                              />
                                               {period.short_forecast && (
-                                                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', fontSize: '0.65rem' }}>
                                                   {period.short_forecast}
                                                 </Typography>
                                               )}
-                                              {period.icon && (
-                                                <img
-                                                  src={period.icon}
-                                                  alt={`${period.short_forecast} weather icon`  || "weather icon"}
-                                                  style={{
-                                                    width: '48px',
-                                                    height: '48px',
-                                                    borderRadius: '8px',
-                                                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                                                  }}
-                                                />
-                                              )}
-                                            </Stack>
-                                          </Box>
-                                          {period.detailed_forecast && (
-                                            <Typography variant="body2" color="text.secondary">
-                                              {period.detailed_forecast}
-                                            </Typography>
+                                            </Box>
                                           )}
-                                        </Stack>
-                                      </Paper>
-                                    </Grid>
-                                  ))}
-                                </Grid>
-                              </AccordionDetails>
-                            </Accordion>
+                                        </Box>
+                                        {period.detailed_forecast && (
+                                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                            {period.detailed_forecast}
+                                          </Typography>
+                                        )}
+                                      </Stack>
+                                    </Paper>
+                                  </Grid>
+                                ))}
+                              </Grid>
+                            </TabPanel>
                           );
                         })}
-                    </Stack>
+                    </TabContext>
                   </Box>
                 </CardContent>
               </Card>
