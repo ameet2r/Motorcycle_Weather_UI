@@ -7,94 +7,95 @@ import {
   Box,
   CardActionArea,
   Avatar,
-  Divider,
   IconButton,
   Tooltip,
-  Badge,
   CircularProgress,
 } from "@mui/material";
-import {
-  formatTemperatureRange,
-  formatWindRange,
-  formatPrecipitationRange,
-  formatDateWithRelativeDay,
-  formatSolarInfoSummary,
-  getSolarEventColor,
-} from "../utils/forecastSummary";
 import { formatDateTime } from "../utils/dateTimeFormatters";
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import ThermostatIcon from '@mui/icons-material/Thermostat';
-import AirIcon from '@mui/icons-material/Air';
-import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import LaunchIcon from '@mui/icons-material/Launch';
 import ReplayIcon from '@mui/icons-material/Replay';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import Brightness3Icon from '@mui/icons-material/Brightness3';
-import WbTwilightIcon from '@mui/icons-material/WbTwilight';
-import Brightness6Icon from '@mui/icons-material/Brightness6';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 export default function SearchSummaryCard({ search, onClick, onEditSearch, onRedoSearch, onDeleteSearch, isRedoing, isDeleting }) {
 
+  // Calculate day count across all locations
+  const calculateDayCount = () => {
+    let allDates = new Set();
 
-  const formatCoordinates = (coordinates) => {
-    return coordinates.map(coord => {
-      if (coord.address) {
-        return `${coord.address} (${coord.latitude}, ${coord.longitude})`;
-      }
-      return `(${coord.latitude}, ${coord.longitude})`;
-    }).join(' • ');
+    search.coordinates.forEach(coord => {
+      Object.keys(coord.summary.dailySummaries).forEach(date => {
+        allDates.add(date);
+      });
+    });
+
+    return allDates.size;
   };
+
+  const dayCount = calculateDayCount();
 
   return (
     <Card
       sx={{
-        mb: 3,
-        borderRadius: 3,
+        mb: 2,
+        borderRadius: 2,
         border: '1px solid',
         borderColor: 'divider',
-        transition: 'all 0.3s ease-in-out',
+        transition: 'all 0.2s ease-in-out',
         '&:hover': {
           borderColor: 'primary.main',
-          boxShadow: '0 8px 24px rgba(25, 118, 210, 0.15)',
-          transform: 'translateY(-4px)'
+          boxShadow: '0 4px 12px rgba(25, 118, 210, 0.12)',
+          transform: 'translateY(-2px)'
         }
       }}
-      className="professional-card"
     >
-      {/* Header Section - Outside CardActionArea */}
-      <CardContent sx={{ p: 3, pb: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      {/* Header Section */}
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               sx={{
                 bgcolor: 'primary.main',
-                width: 48,
-                height: 48
+                width: 40,
+                height: 40
               }}
             >
-              <AccessTimeIcon />
+              <AccessTimeIcon sx={{ fontSize: 20 }} />
             </Avatar>
             <Box>
-              <Typography variant="h6" component="h3" sx={{ fontWeight: 600, mb: 0.5 }}>
+              <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600, mb: 0.25 }}>
                 {formatDateTime(search.timestamp)}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                <Typography variant="body2" color="text.secondary">
-                  {search.coordinates.length} location{search.coordinates.length > 1 ? 's' : ''}
-                </Typography>
+                <Chip
+                  icon={<LocationOnIcon sx={{ fontSize: '14px !important' }} />}
+                  label={`${search.coordinates.length} location${search.coordinates.length > 1 ? 's' : ''}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 22, fontSize: '0.75rem' }}
+                />
+                <Chip
+                  icon={<CalendarTodayIcon sx={{ fontSize: '14px !important' }} />}
+                  label={`${dayCount} day${dayCount > 1 ? 's' : ''}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 22, fontSize: '0.75rem' }}
+                />
               </Box>
             </Box>
           </Box>
 
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={0.5}>
             <Tooltip title="Edit Search">
               <IconButton
-                onClick={() => onEditSearch(search)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditSearch(search);
+                }}
+                size="small"
                 sx={{
                   color: 'secondary.main',
                   '&:hover': {
@@ -103,13 +104,17 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
                   }
                 }}
               >
-                <EditIcon sx={{ fontSize: 20 }} />
+                <EditIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
             <Tooltip title="Delete Search">
               <IconButton
-                onClick={() => onDeleteSearch(search)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteSearch(search);
+                }}
                 disabled={isDeleting}
+                size="small"
                 sx={{
                   color: 'error.main',
                   '&:hover': {
@@ -122,16 +127,20 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
                 }}
               >
                 {isDeleting ? (
-                  <CircularProgress size={20} />
+                  <CircularProgress size={18} />
                 ) : (
-                  <DeleteIcon sx={{ fontSize: 20 }} />
+                  <DeleteIcon sx={{ fontSize: 18 }} />
                 )}
               </IconButton>
             </Tooltip>
             <Tooltip title="Redo Search">
               <IconButton
-                onClick={() => onRedoSearch(search)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRedoSearch(search);
+                }}
                 disabled={isRedoing}
+                size="small"
                 sx={{
                   color: 'primary.main',
                   '&:hover': {
@@ -143,12 +152,16 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
                   }
                 }}
               >
-                <ReplayIcon sx={{ fontSize: 20 }} />
+                <ReplayIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
             <Tooltip title="View Details">
               <IconButton
-                onClick={() => onClick(search.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick(search.id);
+                }}
+                size="small"
                 sx={{
                   color: 'info.main',
                   '&:hover': {
@@ -157,194 +170,41 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
                   }
                 }}
               >
-                <LaunchIcon sx={{ fontSize: 20 }} />
+                <LaunchIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
           </Stack>
         </Box>
-      </CardContent>
 
-      {/* Main Content - Clickable Area */}
-      <CardActionArea onClick={() => onClick(search.id)}>
-        <CardContent sx={{ pt: 0 }}>
-          <Stack spacing={3}>
-            <Divider />
-
-            {/* Coordinates Overview */}
+        {/* Main Content - Clickable Area */}
+        <CardActionArea
+          onClick={() => onClick(search.id)}
+          sx={{
+            borderRadius: 1.5,
+            p: 2,
+            mt: 1
+          }}
+        >
+          <Stack spacing={1.5}>
+            {/* Locations List */}
             <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
-                Coordinates Overview
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Locations
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                {formatCoordinates(search.coordinates)}
-              </Typography>
-            </Box>
-
-            {/* Location Details */}
-            <Stack spacing={2}>
-              {search.coordinates.map((coord, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    p: 2.5,
-                    bgcolor: 'background.default',
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                      bgcolor: 'action.hover'
-                    }
-                  }}
-                >
-                  {/* Location Header */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
-                      {coord.address ? `${coord.address} (${coord.latitude}, ${coord.longitude})` : `${coord.latitude}, ${coord.longitude}`}
+              <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                {search.coordinates.map((coord, index) => (
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <LocationOnIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                    <Typography variant="body2">
+                      {coord.address || `${coord.latitude}, ${coord.longitude}`}
                     </Typography>
-                    <Chip
-                      label={`${coord.elevation} ft`}
-                      size="small"
-                      variant="outlined"
-                      color="secondary"
-                    />
                   </Box>
-
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                    {coord.summary.dayCount} day{coord.summary.dayCount > 1 ? 's' : ''} • {coord.summary.totalPeriods} forecast periods
-                  </Typography>
-
-                  {/* Daily Forecast Cards */}
-                  <Stack spacing={1.5}>
-                    {Object.entries(coord.summary.dailySummaries)
-                      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-                      .slice(0, 3) // Show only first 3 days for summary
-                      .map(([date, daySummary]) => (
-                        <Box
-                          key={date}
-                          sx={{
-                            p: 2,
-                            bgcolor: 'background.paper',
-                            borderRadius: 1.5,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            transition: 'all 0.2s ease-in-out',
-                            '&:hover': {
-                              borderColor: 'primary.light'
-                            }
-                          }}
-                        >
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                            {formatDateWithRelativeDay(date)}
-                            <Chip
-                              label={`${daySummary.periodCount} periods`}
-                              size="small"
-                              variant="outlined"
-                              sx={{ ml: 1, fontSize: '0.7rem', height: '20px' }}
-                            />
-                          </Typography>
-
-                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                            <Tooltip title="Temperature Range">
-                              <Chip
-                                icon={<ThermostatIcon sx={{ fontSize: '14px !important' }} />}
-                                label={formatTemperatureRange(daySummary.tempRange)}
-                                size="small"
-                                variant="filled"
-                                color="primary"
-                                sx={{
-                                  fontSize: '0.75rem',
-                                  height: '24px',
-                                  '& .MuiChip-icon': { fontSize: 14 }
-                                }}
-                              />
-                            </Tooltip>
-                            <Tooltip title="Wind Speed Range">
-                              <Chip
-                                icon={<AirIcon sx={{ fontSize: '14px !important' }} />}
-                                label={formatWindRange(daySummary.windRange)}
-                                size="small"
-                                variant="filled"
-                                color="secondary"
-                                sx={{
-                                  fontSize: '0.75rem',
-                                  height: '24px',
-                                  '& .MuiChip-icon': { fontSize: 14 }
-                                }}
-                              />
-                            </Tooltip>
-                            <Tooltip title="Precipitation Chance">
-                              <Chip
-                                icon={<WaterDropIcon sx={{ fontSize: '14px !important' }} />}
-                                label={formatPrecipitationRange(daySummary.precipRange)}
-                                size="small"
-                                variant="filled"
-                                color="info"
-                                sx={{
-                                  fontSize: '0.75rem',
-                                  height: '24px',
-                                  '& .MuiChip-icon': { fontSize: 14 }
-                                }}
-                              />
-                            </Tooltip>
-                            
-                            {/* Solar Information Chips */}
-                            {daySummary.solarInfo && formatSolarInfoSummary(daySummary.solarInfo).map((solarEvent, solarIndex) => {
-                              const getSolarIcon = (eventType) => {
-                                switch (eventType) {
-                                  case 'sunrise':
-                                    return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
-                                  case 'sunset':
-                                    return <Brightness3Icon sx={{ fontSize: '14px !important' }} />;
-                                  case 'solarNoon':
-                                    return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
-                                  case 'dawn':
-                                    return <Brightness6Icon sx={{ fontSize: '14px !important' }} />;
-                                  case 'dusk':
-                                    return <Brightness4Icon sx={{ fontSize: '14px !important' }} />;
-                                  case 'goldenHours':
-                                    return <WbTwilightIcon sx={{ fontSize: '14px !important' }} />;
-                                  default:
-                                    return <WbSunnyIcon sx={{ fontSize: '14px !important' }} />;
-                                }
-                              };
-
-                              return (
-                                <Tooltip key={solarIndex} title={solarEvent.label}>
-                                  <Chip
-                                    icon={getSolarIcon(solarEvent.type)}
-                                    label={`${solarEvent.label}: ${solarEvent.time}`}
-                                    size="small"
-                                    variant="outlined"
-                                    color={getSolarEventColor(solarEvent.type)}
-                                    sx={{
-                                      fontSize: '0.75rem',
-                                      height: '24px',
-                                      '& .MuiChip-icon': { fontSize: 14 }
-                                    }}
-                                  />
-                                </Tooltip>
-                              );
-                            })}
-                          </Stack>
-                        </Box>
-                      ))}
-
-                    {/* Show more indicator if there are more days */}
-                    {Object.keys(coord.summary.dailySummaries).length > 3 && (
-                      <Box sx={{ textAlign: 'center', pt: 1 }}>
-                        <Typography variant="caption" color="primary.main" sx={{ fontWeight: 500 }}>
-                          +{Object.keys(coord.summary.dailySummaries).length - 3} more days • Click to view all
-                        </Typography>
-                      </Box>
-                    )}
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
+                ))}
+              </Stack>
+            </Box>
           </Stack>
-        </CardContent>
-      </CardActionArea>
+        </CardActionArea>
+      </CardContent>
     </Card>
   );
 }
