@@ -16,6 +16,8 @@ import {
   Skeleton,
   Tabs,
   Tab,
+  Collapse,
+  IconButton,
 } from "@mui/material";
 import { TabContext, TabPanel } from "@mui/lab";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -26,6 +28,8 @@ import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import HeightIcon from "@mui/icons-material/Height";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import Brightness3Icon from '@mui/icons-material/Brightness3';
 import WbTwilightIcon from '@mui/icons-material/WbTwilight';
@@ -41,7 +45,9 @@ import {
   formatSolarInfoDetailed,
   getSolarEventColor,
 } from "../utils/forecastSummary";
-import { formatDateTime, formatPeriodTime, isCurrentPeriod } from "../utils/dateTimeFormatters";
+import { formatDateTime, formatTime, isCurrentPeriod } from "../utils/dateTimeFormatters";
+import HourlyTimeline from "../components/forecast/HourlyTimeline";
+import ForecastCharts from "../components/forecast/ForecastCharts";
 
 export default function ForecastDetailsPage() {
   const { searchId } = useParams();
@@ -52,6 +58,7 @@ export default function ForecastDetailsPage() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("0");
   const [activeDayTabs, setActiveDayTabs] = useState({});
+  const [expandedPeriods, setExpandedPeriods] = useState({});
 
   useEffect(() => {
     loadSearchDetails();
@@ -97,6 +104,14 @@ export default function ForecastDetailsPage() {
     setActiveDayTabs(prev => ({
       ...prev,
       [locationIndex]: newDayValue
+    }));
+  };
+
+  const handleTogglePeriods = (coordIndex, date) => {
+    const key = `${coordIndex}_${date}`;
+    setExpandedPeriods(prev => ({
+      ...prev,
+      [key]: !prev[key]
     }));
   };
 
@@ -484,11 +499,34 @@ export default function ForecastDetailsPage() {
                                 )}
                               </Paper>
 
+                              {/* Hourly Timeline */}
+                              <Box sx={{ mb: 3 }}>
+                                <HourlyTimeline periods={periods} />
+                              </Box>
+
+                              {/* Forecast Charts */}
+                              <Box sx={{ mb: 3 }}>
+                                <ForecastCharts periods={periods} solarInfo={daySummary.solarInfo} />
+                              </Box>
+
                               {/* Period Details */}
-                              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                                Forecast Periods ({daySummary.periodCount})
-                              </Typography>
-                              <Grid container spacing={2}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                  Forecast Periods ({daySummary.periodCount})
+                                </Typography>
+                                <IconButton
+                                  onClick={() => handleTogglePeriods(coordIndex, date)}
+                                  size="small"
+                                  sx={{
+                                    transform: expandedPeriods[`${coordIndex}_${date}`] ? 'rotate(0deg)' : 'rotate(180deg)',
+                                    transition: 'transform 0.3s',
+                                  }}
+                                >
+                                  {expandedPeriods[`${coordIndex}_${date}`] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                </IconButton>
+                              </Box>
+                              <Collapse in={expandedPeriods[`${coordIndex}_${date}`]} timeout="auto">
+                                <Grid container spacing={2}>
                                 {periods.map((period, idx) => (
                                   <Grid key={idx} size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Paper
@@ -509,7 +547,7 @@ export default function ForecastDetailsPage() {
                                     >
                                       <Stack spacing={1.5}>
                                         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                          {formatPeriodTime(period.start_time, period.end_time)}
+                                          {formatTime(period.start_time)}
                                         </Typography>
                                         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between' }}>
                                           <Stack spacing={0.5} sx={{ flex: 1 }}>
@@ -555,7 +593,8 @@ export default function ForecastDetailsPage() {
                                     </Paper>
                                   </Grid>
                                 ))}
-                              </Grid>
+                                </Grid>
+                              </Collapse>
                             </TabPanel>
                           );
                         })}
