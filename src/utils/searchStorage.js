@@ -163,14 +163,14 @@ export async function saveSearch(searchData, membershipTier, originalSearchId = 
   // STEP 3: SYNCHRONOUS - Add to localStorage cache immediately (UI depends on this!)
   addToLocalStorageCache(searchData);
 
-  // STEP 4: ASYNCHRONOUS - Queue backend operations (doesn't block navigation!)
-
-  // Mark duplicates and original as pending deletion
+  // STEP 4: SYNCHRONOUS - Mark duplicates and original as pending deletion (tombstones)
+  // This MUST happen before queueing async operations to prevent race conditions
   duplicateIds.forEach(id => pendingDeletions.add(id));
   if (originalSearchId) {
     pendingDeletions.add(originalSearchId);
   }
 
+  // STEP 5: ASYNCHRONOUS - Queue backend operations (doesn't block navigation!)
   syncQueue.enqueue(async () => {
     // Delete duplicates from backend
     for (const dupId of duplicateIds) {
@@ -238,42 +238,203 @@ export function getSearchByIdFromStorage(searchId, membershipTier) {
  * Merges backend data with local-only searches to avoid losing pending syncs
  * @param {string} membershipTier - User's membership tier
  * @param {number} limit - Maximum number of searches to fetch
- * @returns {Promise<Array>} Array of synced searches
+ * @param {number} offset - Number of searches to skip
+ * @param {boolean} append - If true, append to existing cache instead of replacing
+ * @returns {Promise<Object>} Object with searches array, total count, and hasMore flag
  */
-export async function syncSearchesFromBackend(membershipTier, limit = 50) {
+export async function syncSearchesFromBackend(membershipTier, limit = 30, offset = 0, append = false) {
   if (!isPremiumTier(membershipTier)) {
     // Free tier users don't sync from backend
-    return getSearchHistory();
+    const localSearches = getSearchHistory();
+    return {
+      searches: localSearches,
+      total: localSearches.length,
+      hasMore: false,
+      offset: 0,
+      limit: localSearches.length
+    };
   }
 
   try {
-    const response = await getSearchesFromBackend(limit, 0);
+    const response = await getSearchesFromBackend(limit, offset);
     const backendSearches = response.searches || [];
+    const total = response.total || backendSearches.length;
 
     // Get current localStorage to preserve searches that haven't synced yet
     const localSearches = getSearchHistory();
 
-    // Create a map of backend search IDs for fast lookup
-    const backendIds = new Set(backendSearches.map(s => s.id));
+    let mergedSearches;
 
-    // Find local searches that aren't in backend yet (pending sync)
-    const localOnlySearches = localSearches.filter(s => !backendIds.has(s.id));
+    if (offset === 0 && !append) {
+      // Initial load: merge local-only searches with backend searches
+      // Create a map of backend search IDs for fast lookup
+      const backendIds = new Set(backendSearches.map(s => s.id));
 
-    // Filter out searches that are pending deletion from backend
-    // This prevents deleted searches from reappearing during sync
-    const filteredBackendSearches = backendSearches.filter(s => !pendingDeletions.has(s.id));
+      // Find local searches that aren't in backend yet (pending sync)
+      const localOnlySearches = localSearches.filter(s => !backendIds.has(s.id));
 
-    // Merge: local-only searches + filtered backend searches
-    const mergedSearches = [...localOnlySearches, ...filteredBackendSearches];
+      // Filter out searches that are pending deletion from backend
+      // This prevents deleted searches from reappearing during sync
+      const filteredBackendSearches = backendSearches.filter(s => !pendingDeletions.has(s.id));
 
-    // Update localStorage cache with merged data
-    updateLocalStorageCache(mergedSearches);
+      // DEDUPLICATION: Remove duplicate searches by coordinates (keep most recent)
+      // This handles cases where backend has multiple searches with same coordinates
+      const deduplicatedSearches = [];
+      const seenCoordinates = new Set();
 
-    return mergedSearches;
+      // Process all searches (local + backend), most recent first
+      const allSearches = [...localOnlySearches, ...filteredBackendSearches];
+      allSearches.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      for (const search of allSearches) {
+        // Create a coordinate signature
+        const coordKey = search.coordinates
+          .map(c => `${c.latitude}:${c.longitude}`)
+          .sort()
+          .join('|');
+
+        if (!seenCoordinates.has(coordKey)) {
+          seenCoordinates.add(coordKey);
+          deduplicatedSearches.push(search);
+        }
+      }
+
+      // Merge: deduplicated searches
+      mergedSearches = deduplicatedSearches;
+
+      // Update localStorage cache with merged data
+      updateLocalStorageCache(mergedSearches);
+    } else {
+      // Loading more: append to existing cache
+      const filteredBackendSearches = backendSearches.filter(s => !pendingDeletions.has(s.id));
+
+      // Create a set of existing IDs and coordinates to avoid duplicates
+      const existingIds = new Set(localSearches.map(s => s.id));
+      const existingCoords = new Set(
+        localSearches.map(s =>
+          s.coordinates
+            .map(c => `${c.latitude}:${c.longitude}`)
+            .sort()
+            .join('|')
+        )
+      );
+
+      // Filter out searches that already exist by ID or coordinates
+      const newSearches = filteredBackendSearches.filter(s => {
+        if (existingIds.has(s.id)) return false;
+
+        const coordKey = s.coordinates
+          .map(c => `${c.latitude}:${c.longitude}`)
+          .sort()
+          .join('|');
+
+        if (existingCoords.has(coordKey)) return false;
+
+        // Add to existing coords set so we don't add duplicates within this batch
+        existingCoords.add(coordKey);
+        return true;
+      });
+
+      mergedSearches = [...localSearches, ...newSearches];
+
+      // Update localStorage cache with appended data
+      updateLocalStorageCache(mergedSearches);
+    }
+
+    const hasMore = (offset + backendSearches.length) < total;
+
+    return {
+      searches: mergedSearches,
+      total: total,
+      hasMore: hasMore,
+      offset: offset,
+      limit: limit
+    };
   } catch (error) {
     console.error('Error syncing searches from backend:', error);
     // Return cached data on error
-    return getSearchHistory();
+    const localSearches = getSearchHistory();
+    return {
+      searches: localSearches,
+      total: localSearches.length,
+      hasMore: false,
+      offset: 0,
+      limit: localSearches.length
+    };
+  }
+}
+
+/**
+ * Search for searches by address/location text in localStorage only
+ * @param {string} membershipTier - User's membership tier
+ * @param {string} searchText - Text to search for in addresses
+ * @returns {Object} Object with searches array and metadata
+ */
+export function searchSearchesLocal(membershipTier, searchText) {
+  const normalizedSearch = searchText.toLowerCase().trim();
+
+  // Search in localStorage
+  const localSearches = getSearchHistory();
+  const localResults = localSearches.filter(search => {
+    return search.coordinates.some(coord =>
+      coord.address?.toLowerCase().includes(normalizedSearch)
+    );
+  });
+
+  return {
+    searches: localResults,
+    total: localResults.length,
+    hasMore: isPremiumTier(membershipTier), // Premium users can search backend
+    source: 'localStorage'
+  };
+}
+
+/**
+ * Search for searches by address/location text in backend
+ * Premium users only
+ * @param {string} membershipTier - User's membership tier
+ * @param {string} searchText - Text to search for in addresses
+ * @param {number} limit - Maximum number of results to return
+ * @returns {Promise<Object>} Object with searches array and metadata
+ */
+export async function searchSearchesBackend(membershipTier, searchText, limit = 50) {
+  if (!isPremiumTier(membershipTier)) {
+    // Free tier: can't search backend
+    return {
+      searches: [],
+      total: 0,
+      hasMore: false,
+      source: 'error',
+      error: 'Backend search is only available for Plus and Pro members'
+    };
+  }
+
+  const normalizedSearch = searchText.toLowerCase().trim();
+
+  try {
+    const response = await getSearchesFromBackend(limit, 0, normalizedSearch);
+    const backendSearches = response.searches || [];
+    const total = response.total || backendSearches.length;
+
+    // Filter out pending deletions
+    const filteredSearches = backendSearches.filter(s => !pendingDeletions.has(s.id));
+
+    return {
+      searches: filteredSearches,
+      total: filteredSearches.length,
+      hasMore: false,
+      source: 'backend'
+    };
+  } catch (error) {
+    console.error('Error searching backend:', error);
+    // Return empty results on error
+    return {
+      searches: [],
+      total: 0,
+      hasMore: false,
+      source: 'error',
+      error: error.message || 'Failed to search cloud storage'
+    };
   }
 }
 

@@ -13,10 +13,15 @@ export async function saveSearchToBackend(searchData) {
  * Get all searches from the backend
  * @param {number} limit - Maximum number of searches to return (default: 50)
  * @param {number} offset - Number of searches to skip (default: 0)
+ * @param {string} search - Optional search query to filter by address (default: null)
  * @returns {Promise<Object>} Object with searches array, total, limit, offset
  */
-export async function getSearchesFromBackend(limit = 50, offset = 0) {
-  return await authenticatedGet(`/searches/?limit=${limit}&offset=${offset}`);
+export async function getSearchesFromBackend(limit = 50, offset = 0, search = null) {
+  let url = `/searches/?limit=${limit}&offset=${offset}`;
+  if (search) {
+    url += `&search=${encodeURIComponent(search)}`;
+  }
+  return await authenticatedGet(url);
 }
 
 /**

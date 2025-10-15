@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Typography,
@@ -23,14 +23,25 @@ import InfoIcon from "@mui/icons-material/Info";
 import CloudIcon from '@mui/icons-material/Cloud';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { generateSearchId } from "../utils/localStorage";
-import { getAllSearches, clearAllSearches, deleteSearch, saveSearch, syncSearchesFromBackend, getSearchByIdFromStorage } from "../utils/searchStorage";
+import {
+  getAllSearches,
+  clearAllSearches,
+  deleteSearch,
+  saveSearch,
+  syncSearchesFromBackend,
+  getSearchByIdFromStorage,
+  searchSearchesLocal,
+  searchSearchesBackend
+} from "../utils/searchStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
 import { formatDateTime } from "../utils/dateTimeFormatters";
 import { authenticatedPost, isAuthError } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useUser } from "../contexts/UserContext";
 import SearchSummaryCard from "../components/SearchSummaryCard";
+import SearchFilterBar from "../components/SearchFilterBar";
 
 const pulse = keyframes`
   0% {
@@ -50,15 +61,39 @@ const pulse = keyframes`
 export default function PreviousSearchesPage() {
   const [searches, setSearches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [redoLoading, setRedoLoading] = useState(false);
   const [redoLoadingStep, setRedoLoadingStep] = useState('');
   const [redoError, setRedoError] = useState(null);
   const [redoSuccess, setRedoSuccess] = useState(false);
   const [redoingSearchId, setRedoingSearchId] = useState(null);
   const [deletingSearchId, setDeletingSearchId] = useState(null);
+
+  // Pagination state (for plus/pro users)
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalSearches, setTotalSearches] = useState(0);
+
+  // Search/filter state (for plus/pro users)
+  const [searchText, setSearchText] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchSource, setSearchSource] = useState(null);
+
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { membershipTier } = useUser();
+
+  // Check if user is premium (plus or pro)
+  const isPremium = membershipTier === 'plus' || membershipTier === 'pro';
+
+  // Adaptive initial limit based on screen size (for premium users)
+  const getInitialLimit = () => {
+    if (!isPremium) return 3; // Free users always have max 3
+    const isMobile = window.innerWidth < 768;
+    return isMobile ? 15 : 30;
+  };
+
+  const [limit] = useState(getInitialLimit());
 
   useEffect(() => {
     loadSearchHistory();
@@ -66,19 +101,99 @@ export default function PreviousSearchesPage() {
 
   const loadSearchHistory = async () => {
     setLoading(true);
+    setSearchText('');
+    setSearchSource(null);
     try {
       // Sync from backend for plus/pro users, use localStorage for free users
-      const history = await syncSearchesFromBackend(membershipTier);
-      setSearches(history);
+      const result = await syncSearchesFromBackend(membershipTier, limit, 0, false);
+      setSearches(result.searches);
+      setTotalSearches(result.total);
+      setHasMore(result.hasMore);
+      setOffset(limit);
     } catch (error) {
       console.error('Error loading search history:', error);
       // Fallback to local cache if sync fails
       const localHistory = getAllSearches(membershipTier);
       setSearches(localHistory);
+      setTotalSearches(localHistory.length);
+      setHasMore(false);
+      setOffset(0);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleLoadMore = async () => {
+    if (!isPremium || !hasMore || loadingMore) return;
+
+    setLoadingMore(true);
+    try {
+      const result = await syncSearchesFromBackend(membershipTier, limit, offset, true);
+      setSearches(result.searches);
+      setTotalSearches(result.total);
+      setHasMore(result.hasMore);
+      setOffset(offset + limit);
+    } catch (error) {
+      console.error('Error loading more searches:', error);
+      setRedoError('Failed to load more searches. Please try again.');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleClearSearch = useCallback(async () => {
+    setSearchText('');
+    setSearchSource(null);
+    await loadSearchHistory();
+  }, [membershipTier, limit]);
+
+  const handleSearchLocal = useCallback((searchQuery) => {
+    // If empty query, reset to show all searches
+    if (!searchQuery || !searchQuery.trim()) {
+      handleClearSearch();
+      return;
+    }
+
+    setSearchText(searchQuery);
+    const result = searchSearchesLocal(membershipTier, searchQuery);
+    setSearches(result.searches);
+    setTotalSearches(result.total);
+    setHasMore(false); // Disable load more when searching
+    setSearchSource(result.source);
+  }, [membershipTier, handleClearSearch]);
+
+  const handleSearchBackend = useCallback(async (searchQuery) => {
+    if (!searchQuery || !searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setSearchText(searchQuery);
+    try {
+      const result = await searchSearchesBackend(membershipTier, searchQuery);
+      if (result.error) {
+        setRedoError(result.error);
+        // Clear searches on error
+        setSearches([]);
+        setTotalSearches(0);
+        setHasMore(false);
+        setSearchSource('error');
+        return;
+      }
+      setSearches(result.searches);
+      setTotalSearches(result.total);
+      setHasMore(false); // Disable load more when searching
+      setSearchSource(result.source);
+    } catch (error) {
+      console.error('Error searching backend:', error);
+      setRedoError('Failed to search cloud storage. Please try again.');
+      // Clear searches on error
+      setSearches([]);
+      setTotalSearches(0);
+      setHasMore(false);
+      setSearchSource('error');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [membershipTier]);
 
   const handleSearchClick = (searchId) => {
     navigate(`/forecast/${searchId}`);
@@ -324,6 +439,23 @@ export default function PreviousSearchesPage() {
           )}
         </Box>
 
+        {/* Search/Filter Bar (Plus/Pro users only) */}
+        {isPremium && (
+          <Fade in={true}>
+            <Box>
+              <SearchFilterBar
+                onSearchLocal={handleSearchLocal}
+                onSearchBackend={handleSearchBackend}
+                onClear={handleClearSearch}
+                isSearching={isSearching}
+                resultCount={searchText ? searches.length : null}
+                source={searchSource}
+                showBackendSearch={isPremium && searchText && searches.length === 0 && searchSource === 'localStorage'}
+              />
+            </Box>
+          </Fade>
+        )}
+
         {/* Search Results */}
         {searches.length === 0 ? (
           <Fade in={true}>
@@ -339,27 +471,31 @@ export default function PreviousSearchesPage() {
             >
               <HistoryIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
               <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
-                No Search History
+                {searchText ? 'No Results Found' : 'No Search History'}
               </Typography>
               <Typography variant="body1" color="text.secondary" paragraph sx={{ maxWidth: 400, mx: 'auto' }}>
-                You haven't performed any weather searches yet. Create your first search to start building your forecast history.
+                {searchText
+                  ? `No searches found matching "${searchText}". Try a different search term.`
+                  : "You haven't performed any weather searches yet. Create your first search to start building your forecast history."}
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<SearchIcon />}
-                onClick={handleNewSearch}
-                size="large"
-                sx={{
-                  mt: 2,
-                  px: 4,
-                  py: 1.5,
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  textTransform: 'none'
-                }}
-              >
-                Create Your First Search
-              </Button>
+              {!searchText && (
+                <Button
+                  variant="contained"
+                  startIcon={<SearchIcon />}
+                  onClick={handleNewSearch}
+                  size="large"
+                  sx={{
+                    mt: 2,
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    textTransform: 'none'
+                  }}
+                >
+                  Create Your First Search
+                </Button>
+              )}
             </Paper>
           </Fade>
         ) : (
@@ -368,10 +504,10 @@ export default function PreviousSearchesPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                  Search Results
+                  {searchText ? 'Search Results' : 'Your Searches'}
                 </Typography>
                 <Chip
-                  label={`${searches.length} search${searches.length > 1 ? 'es' : ''}`}
+                  label={`${searches.length}${isPremium && totalSearches > searches.length ? ` of ${totalSearches}` : ''} search${searches.length > 1 ? 'es' : ''}`}
                   color="primary"
                   variant="outlined"
                   size="small"
@@ -383,7 +519,7 @@ export default function PreviousSearchesPage() {
 
             {/* Search Cards */}
             <Stack spacing={3}>
-              {searches.map((search, index) => (
+              {searches.map((search) => (
                 <Fade in={true} key={search.id}>
                   <div>
                     <SearchSummaryCard
@@ -399,6 +535,35 @@ export default function PreviousSearchesPage() {
                 </Fade>
               ))}
             </Stack>
+
+            {/* Load More Button (Plus/Pro users only) */}
+            {isPremium && hasMore && !searchText && (
+              <Fade in={true}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={loadingMore ? <CircularProgress size={20} /> : <ExpandMoreIcon />}
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    sx={{
+                      px: 4,
+                      py: 1.5,
+                      borderRadius: 2,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      borderWidth: '1.5px',
+                      '&:hover': {
+                        borderWidth: '1.5px',
+                        transform: 'translateY(-2px)'
+                      }
+                    }}
+                  >
+                    {loadingMore ? 'Loading...' : `Load ${Math.min(limit, totalSearches - searches.length)} More`}
+                  </Button>
+                </Box>
+              </Fade>
+            )}
           </Stack>
         )}
 
@@ -445,15 +610,17 @@ export default function PreviousSearchesPage() {
               }}
             >
               <Typography variant="body2">
-                {membershipTier === 'plus' || membershipTier === 'pro' ? (
+                {isPremium ? (
                   <>
-                    <strong>Cloud Sync:</strong> Your search history is synced across all your devices.
-                    Searches are stored securely in the cloud and cached locally for fast access.
+                    <strong>Premium Features:</strong> Your search history is synced across all your devices
+                    and stored securely in the cloud. Use the search bar to find specific locations,
+                    and load more searches as needed. Showing {searches.length} of {totalSearches} total searches.
                   </>
                 ) : (
                   <>
-                    <strong>Data Storage:</strong> Search history is stored locally in your browser.
+                    <strong>Data Storage:</strong> Search history is stored locally in your browser (last 3 searches).
                     Clearing your browser cache or data will remove this information.
+                    Upgrade to Plus or Pro for unlimited cloud storage and cross-device sync.
                   </>
                 )}
               </Typography>
