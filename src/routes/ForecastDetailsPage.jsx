@@ -59,6 +59,7 @@ export default function ForecastDetailsPage() {
   const [activeTab, setActiveTab] = useState("0");
   const [activeDayTabs, setActiveDayTabs] = useState({});
   const [expandedPeriods, setExpandedPeriods] = useState({});
+  const [selectedDate, setSelectedDate] = useState(null);
 
   useEffect(() => {
     loadSearchDetails();
@@ -74,14 +75,16 @@ export default function ForecastDetailsPage() {
         setError('Search not found. It may have been deleted or expired.');
       } else {
         setSearch(searchData);
-        // Initialize the first day for each location
+        // Initialize the first location's day tab and set the selected date
         const initialDayTabs = {};
-        searchData.coordinates.forEach((coord, index) => {
-          const dates = Object.keys(coord.summary.dailySummaries).sort();
+        if (searchData.coordinates.length > 0) {
+          const dates = Object.keys(searchData.coordinates[0].summary.dailySummaries).sort();
           if (dates.length > 0) {
-            initialDayTabs[index] = dates[0];
+            const firstDate = dates[0];
+            initialDayTabs[0] = firstDate;
+            setSelectedDate(firstDate);
           }
-        });
+        }
         setActiveDayTabs(initialDayTabs);
       }
     } catch (err) {
@@ -98,6 +101,23 @@ export default function ForecastDetailsPage() {
 
   const handleTabChange = (_event, newValue) => {
     setActiveTab(newValue);
+
+    // When switching locations, try to maintain the same calendar date
+    const newLocationIndex = parseInt(newValue);
+    if (search && search.coordinates[newLocationIndex] && selectedDate) {
+      const newCoord = search.coordinates[newLocationIndex];
+      const dates = Object.keys(newCoord.summary.dailySummaries).sort();
+
+      // If this location doesn't have a selected day yet, set it based on current selected date
+      if (!activeDayTabs[newLocationIndex] && dates.length > 0) {
+        // Try to find the same date in the new location
+        const dateToSet = dates.includes(selectedDate) ? selectedDate : dates[0];
+        setActiveDayTabs(prev => ({
+          ...prev,
+          [newLocationIndex]: dateToSet
+        }));
+      }
+    }
   };
 
   const handleDayTabChange = (locationIndex, newDayValue) => {
@@ -105,6 +125,9 @@ export default function ForecastDetailsPage() {
       ...prev,
       [locationIndex]: newDayValue
     }));
+
+    // Update the globally selected date so other locations will use this same date
+    setSelectedDate(newDayValue);
   };
 
   const handleTogglePeriods = (coordIndex, date) => {
