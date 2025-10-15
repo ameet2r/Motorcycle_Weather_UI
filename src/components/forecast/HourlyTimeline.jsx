@@ -58,12 +58,46 @@ export default function HourlyTimeline({ periods }) {
       <Typography variant="body2" sx={{ mb: 0.5 }}>
         <strong>Quality Levels:</strong>
       </Typography>
-      <Box component="ul" sx={{ pl: 2, m: 0, fontSize: '0.875rem' }}>
+      <Box component="ul" sx={{ pl: 2, m: 0, mb: 1.5, fontSize: '0.875rem' }}>
         <li>85-100: Excellent ✅ (Green)</li>
         <li>70-84: Good 👍 (Light Green)</li>
         <li>55-69: Fair ⚠️ (Amber)</li>
         <li>40-54: Caution ⚠️ (Orange)</li>
         <li>0-39: Poor ❌ (Red)</li>
+      </Box>
+
+      {/* Key/Legend */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          pt: 1,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        {[
+          { level: 'Excellent', color: '#4caf50', emoji: '✅' },
+          { level: 'Good', color: '#8bc34a', emoji: '👍' },
+          { level: 'Fair', color: '#ffc107', emoji: '⚠️' },
+          { level: 'Poor', color: '#f44336', emoji: '❌' },
+        ].map((item) => (
+          <Chip
+            key={item.level}
+            icon={<span style={{ fontSize: '0.8rem' }}>{item.emoji}</span>}
+            label={item.level}
+            size="small"
+            variant="outlined"
+            sx={{
+              borderColor: item.color,
+              color: item.color,
+              fontSize: '0.7rem',
+              height: '24px',
+            }}
+          />
+        ))}
       </Box>
     </Box>
   );
@@ -262,38 +296,6 @@ export default function HourlyTimeline({ periods }) {
             </Box>
           );
         })}
-      </Box>
-
-      {/* Legend */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          mt: 2,
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-        }}
-      >
-        {[
-          { level: 'Excellent', color: '#4caf50', emoji: '✅' },
-          { level: 'Good', color: '#8bc34a', emoji: '👍' },
-          { level: 'Fair', color: '#ffc107', emoji: '⚠️' },
-          { level: 'Poor', color: '#f44336', emoji: '❌' },
-        ].map((item) => (
-          <Chip
-            key={item.level}
-            icon={<span style={{ fontSize: '0.8rem' }}>{item.emoji}</span>}
-            label={item.level}
-            size="small"
-            variant="outlined"
-            sx={{
-              borderColor: item.color,
-              color: item.color,
-              fontSize: '0.7rem',
-              height: '24px',
-            }}
-          />
-        ))}
       </Box>
     </Paper>
   );
