@@ -12,6 +12,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import CloudSearchIcon from '@mui/icons-material/CloudQueue';
+import FilterAltOffIcon from '@mui/icons-material/FilterAltOff';
 
 /**
  * SearchFilterBar component for filtering search history
@@ -19,7 +20,8 @@ import CloudSearchIcon from '@mui/icons-material/CloudQueue';
  * @param {Object} props - Component props
  * @param {Function} props.onSearchLocal - Callback when local search is triggered
  * @param {Function} props.onSearchBackend - Callback when backend search is triggered
- * @param {Function} props.onClear - Callback when search is cleared
+ * @param {Function} props.onClearFilter - Callback when filter is cleared
+ * @param {string} props.activeFilter - The currently applied filter text
  * @param {boolean} props.isSearching - Whether a search is in progress
  * @param {number} props.resultCount - Number of results found (optional)
  * @param {string} props.source - Source of results ('localStorage' or 'backend')
@@ -28,7 +30,8 @@ import CloudSearchIcon from '@mui/icons-material/CloudQueue';
 const SearchFilterBar = ({
   onSearchLocal,
   onSearchBackend,
-  onClear,
+  onClearFilter,
+  activeFilter = '',
   isSearching = false,
   resultCount = null,
   source = null,
@@ -60,10 +63,9 @@ const SearchFilterBar = ({
     onSearchLocal(debouncedSearch.trim());
   }, [debouncedSearch, onSearchLocal]);
 
-  const handleClear = () => {
+  const handleClearInput = () => {
     setSearchText('');
-    setDebouncedSearch('');
-    onClear();
+    // Don't clear debouncedSearch - let it stay to maintain the filter
   };
 
   const handleKeyPress = (e) => {
@@ -104,13 +106,14 @@ const SearchFilterBar = ({
                 <SearchIcon color={isSearching ? 'disabled' : 'action'} />
               </InputAdornment>
             ),
-            endAdornment: (searchText || debouncedSearch) && (
+            endAdornment: searchText && (
               <InputAdornment position="end">
                 <IconButton
                   size="small"
-                  onClick={handleClear}
+                  onClick={handleClearInput}
                   disabled={isSearching}
                   edge="end"
+                  aria-label="Clear search input"
                 >
                   <ClearIcon />
                 </IconButton>
@@ -137,8 +140,8 @@ const SearchFilterBar = ({
           }}
         />
 
-        {/* Search result info and backend search button */}
-        {debouncedSearch && (
+        {/* Search result info and filter controls */}
+        {activeFilter && (
           <Fade in={true}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', justifyContent: 'space-between' }}>
               {/* Result chips */}
@@ -164,28 +167,53 @@ const SearchFilterBar = ({
                 )}
               </Box>
 
-              {/* Search cloud button */}
-              {showBackendSearch && resultCount === 0 && source === 'localStorage' && (
+              {/* Action buttons */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {/* Search cloud button */}
+                {showBackendSearch && resultCount === 0 && source === 'localStorage' && (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<CloudSearchIcon />}
+                    onClick={handleBackendSearch}
+                    disabled={isSearching}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      borderRadius: 1.5,
+                      px: 2,
+                      boxShadow: '0 2px 8px rgba(25, 118, 210, 0.25)',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.35)',
+                      }
+                    }}
+                  >
+                    Search Cloud Storage
+                  </Button>
+                )}
+
+                {/* Clear Filter button - always show when filter is active */}
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   size="small"
-                  startIcon={<CloudSearchIcon />}
-                  onClick={handleBackendSearch}
+                  color="secondary"
+                  startIcon={<FilterAltOffIcon />}
+                  onClick={onClearFilter}
                   disabled={isSearching}
                   sx={{
                     textTransform: 'none',
                     fontWeight: 600,
                     borderRadius: 1.5,
                     px: 2,
-                    boxShadow: '0 2px 8px rgba(25, 118, 210, 0.25)',
+                    borderWidth: '1.5px',
                     '&:hover': {
-                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.35)',
+                      borderWidth: '1.5px',
                     }
                   }}
                 >
-                  Search Cloud Storage
+                  Clear Filter
                 </Button>
-              )}
+              </Box>
             </Box>
           </Fade>
         )}

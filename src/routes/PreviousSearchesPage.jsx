@@ -76,6 +76,7 @@ export default function PreviousSearchesPage() {
 
   // Search/filter state (for plus/pro users)
   const [searchText, setSearchText] = useState('');
+  const [activeFilter, setActiveFilter] = useState(''); // The currently applied filter
   const [isSearching, setIsSearching] = useState(false);
   const [searchSource, setSearchSource] = useState(null);
 
@@ -102,6 +103,7 @@ export default function PreviousSearchesPage() {
   const loadSearchHistory = async () => {
     setLoading(true);
     setSearchText('');
+    setActiveFilter('');
     setSearchSource(null);
     try {
       // Sync from backend for plus/pro users, use localStorage for free users
@@ -141,32 +143,41 @@ export default function PreviousSearchesPage() {
     }
   };
 
-  const handleClearSearch = useCallback(async () => {
+  const handleClearFilter = useCallback(async () => {
     setSearchText('');
+    setActiveFilter('');
     setSearchSource(null);
     await loadSearchHistory();
   }, [membershipTier, limit]);
 
   const handleSearchLocal = useCallback((searchQuery) => {
-    // If empty query, reset to show all searches
+    // If empty query and no active filter, reset to show all searches
     if (!searchQuery || !searchQuery.trim()) {
-      handleClearSearch();
+      if (!activeFilter) {
+        handleClearFilter();
+        return;
+      }
+      // If there's an active filter, don't clear it - just clear the search text
+      setSearchText('');
       return;
     }
 
+    // Apply the search filter
     setSearchText(searchQuery);
+    setActiveFilter(searchQuery);
     const result = searchSearchesLocal(membershipTier, searchQuery);
     setSearches(result.searches);
     setTotalSearches(result.total);
     setHasMore(false); // Disable load more when searching
     setSearchSource(result.source);
-  }, [membershipTier, handleClearSearch]);
+  }, [membershipTier, activeFilter, handleClearFilter]);
 
   const handleSearchBackend = useCallback(async (searchQuery) => {
     if (!searchQuery || !searchQuery.trim()) return;
 
     setIsSearching(true);
     setSearchText(searchQuery);
+    setActiveFilter(searchQuery);
     try {
       const result = await searchSearchesBackend(membershipTier, searchQuery);
       if (result.error) {
@@ -446,11 +457,12 @@ export default function PreviousSearchesPage() {
               <SearchFilterBar
                 onSearchLocal={handleSearchLocal}
                 onSearchBackend={handleSearchBackend}
-                onClear={handleClearSearch}
+                onClearFilter={handleClearFilter}
+                activeFilter={activeFilter}
                 isSearching={isSearching}
-                resultCount={searchText ? searches.length : null}
+                resultCount={activeFilter ? searches.length : null}
                 source={searchSource}
-                showBackendSearch={isPremium && searchText && searches.length === 0 && searchSource === 'localStorage'}
+                showBackendSearch={isPremium && activeFilter && searches.length === 0 && searchSource === 'localStorage'}
               />
             </Box>
           </Fade>
@@ -471,14 +483,14 @@ export default function PreviousSearchesPage() {
             >
               <HistoryIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
               <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
-                {searchText ? 'No Results Found' : 'No Search History'}
+                {activeFilter ? 'No Results Found' : 'No Search History'}
               </Typography>
               <Typography variant="body1" color="text.secondary" paragraph sx={{ maxWidth: 400, mx: 'auto' }}>
-                {searchText
-                  ? `No searches found matching "${searchText}". Try a different search term.`
+                {activeFilter
+                  ? `No searches found matching "${activeFilter}". Try a different search term.`
                   : "You haven't performed any weather searches yet. Create your first search to start building your forecast history."}
               </Typography>
-              {!searchText && (
+              {!activeFilter && (
                 <Button
                   variant="contained"
                   startIcon={<SearchIcon />}
@@ -504,7 +516,7 @@ export default function PreviousSearchesPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                  {searchText ? 'Search Results' : 'Your Searches'}
+                  {activeFilter ? 'Search Results' : 'Your Searches'}
                 </Typography>
                 <Chip
                   label={`${searches.length}${isPremium && totalSearches > searches.length ? ` of ${totalSearches}` : ''} search${searches.length > 1 ? 'es' : ''}`}
@@ -537,7 +549,7 @@ export default function PreviousSearchesPage() {
             </Stack>
 
             {/* Load More Button (Plus/Pro users only) */}
-            {isPremium && hasMore && !searchText && (
+            {isPremium && hasMore && !activeFilter && (
               <Fade in={true}>
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
                   <Button
