@@ -360,8 +360,8 @@ function ProtectedApp() {
           maxWidth="xl"
           sx={{
             flex: 1,
-            py: { xs: 2, sm: 4 },
-            px: { xs: 0, sm: 3 }
+            py: { xs: 2, sm: 3 },
+            px: { xs: 0, sm: 1 }
           }}
           className="fade-in"
         >

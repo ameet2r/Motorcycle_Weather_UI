@@ -53,7 +53,7 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
       }}
     >
       {/* Header Section */}
-      <CardContent sx={{ p: 2.5 }}>
+      <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar

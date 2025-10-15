@@ -154,7 +154,7 @@ export default function ForecastDetailsPage() {
           
           {/* Content Skeleton */}
           {[1, 2].map((item) => (
-            <Paper key={item} sx={{ p: 3, borderRadius: 3 }}>
+            <Paper key={item} sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3 }}>
               <Stack spacing={2}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Skeleton variant="circular" width={48} height={48} />
@@ -301,7 +301,7 @@ export default function ForecastDetailsPage() {
                   {/* Location Header */}
                   <Box
                     sx={{
-                      p: 3,
+                      p: { xs: 1.5, sm: 2 },
                       background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(66, 165, 245, 0.05) 100%)',
                       borderBottom: '1px solid',
                       borderColor: 'divider'
@@ -349,7 +349,7 @@ export default function ForecastDetailsPage() {
                   </Box>
 
                   {/* Day Tabs */}
-                  <Box sx={{ p: 3 }}>
+                  <Box sx={{ p: { xs: 1, sm: 1.5 } }}>
                     <TabContext value={activeDayTabs[coordIndex] || ""}>
                       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                         <Tabs
@@ -397,7 +397,7 @@ export default function ForecastDetailsPage() {
                               {/* Day Summary Card */}
                               <Paper
                                 sx={{
-                                  p: 3,
+                                  p: { xs: 1.5, sm: 2 },
                                   mb: 3,
                                   borderRadius: 2,
                                   background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.03) 0%, rgba(66, 165, 245, 0.03) 100%)',
@@ -531,7 +531,7 @@ export default function ForecastDetailsPage() {
                                   <Grid key={idx} size={{ xs: 12, sm: 6, md: 4 }}>
                                     <Paper
                                       sx={{
-                                        p: 2,
+                                        p: { xs: 1.5, sm: 2 },
                                         borderRadius: 2,
                                         border: '1px solid',
                                         borderColor: 'divider',

@@ -39,13 +39,13 @@ const MembershipPage = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: { xs: 1, sm: 2 } }}>
       <Typography variant="h4" component="h1" gutterBottom>
         Membership Management
       </Typography>
 
       <Card sx={{ mb: 3 }}>
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 2 } }}>
           <Typography variant="h6" gutterBottom>
             Current Membership
           </Typography>
@@ -100,7 +100,7 @@ const MembershipPage = () => {
       <Divider sx={{ my: 3 }} />
 
       <Card>
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 2 } }}>
           <Typography variant="h6" gutterBottom>
             Membership Modification
           </Typography>

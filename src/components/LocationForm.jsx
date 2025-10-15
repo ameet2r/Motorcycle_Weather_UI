@@ -273,7 +273,7 @@ const validateLocation = (location) => {
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 3, sm: 4 },
+          p: { xs: 1, sm: 2 },
           mb: 4,
           background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.02) 0%, rgba(66, 165, 245, 0.02) 100%)',
           border: '1px solid',
@@ -317,7 +317,7 @@ const validateLocation = (location) => {
                 <Paper
                   elevation={1}
                   sx={{
-                    p: 3,
+                    p: { xs: 1.5, sm: 2 },
                     borderRadius: 2,
                     border: '1px solid',
                     borderColor: 'divider',
