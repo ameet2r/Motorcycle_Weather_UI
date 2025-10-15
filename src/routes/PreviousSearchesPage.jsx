@@ -24,7 +24,7 @@ import CloudIcon from '@mui/icons-material/Cloud';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import { generateSearchId } from "../utils/localStorage";
-import { getAllSearches, clearAllSearches, deleteSearch, saveSearch, syncSearchesFromBackend } from "../utils/searchStorage";
+import { getAllSearches, clearAllSearches, deleteSearch, saveSearch, syncSearchesFromBackend, getSearchByIdFromStorage } from "../utils/searchStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
 import { formatDateTime } from "../utils/dateTimeFormatters";
 import { authenticatedPost, isAuthError } from "../utils/api";
@@ -184,6 +184,12 @@ export default function PreviousSearchesPage() {
 
       // Save to appropriate storage and delete the original search (localStorage for free, backend for plus/pro)
       await saveSearch(searchData, membershipTier, search.id);
+
+      // Verify search was saved to localStorage before navigating
+      const savedSearch = getSearchByIdFromStorage(searchData.id, membershipTier);
+      if (!savedSearch) {
+        throw new Error('Search was not properly saved to storage');
+      }
 
       setRedoLoadingStep('Complete!');
       setRedoSuccess(true);

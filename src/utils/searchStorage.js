@@ -11,8 +11,13 @@ import {
   deleteSearchFromBackend,
   clearAllSearchesFromBackend
 } from './searchApi';
+import { syncQueue } from './syncQueue';
 
 const STORAGE_KEY = 'weather_search_history';
+
+// Track search IDs that are pending deletion from backend
+// This prevents deleted searches from reappearing during sync
+const pendingDeletions = new Set();
 
 /**
  * Check if user has premium tier (plus or pro)
@@ -39,6 +44,7 @@ function updateLocalStorageCache(searches) {
 /**
  * Add a single search to the beginning of localStorage cache
  * @param {Object} searchData - Search object to add
+ * @throws {Error} If localStorage operations fail
  */
 function addToLocalStorageCache(searchData) {
   try {
@@ -47,6 +53,7 @@ function addToLocalStorageCache(searchData) {
     updateLocalStorageCache(searches);
   } catch (error) {
     console.error('Error adding to localStorage cache:', error);
+    throw new Error(`Failed to save search to local storage: ${error.message}`);
   }
 }
 
@@ -106,41 +113,46 @@ function findDuplicateSearches(newCoordinates, excludeSearchId = null) {
 }
 
 /**
- * Delete searches that have duplicate coordinates
+ * Delete searches that have duplicate coordinates from localStorage only
+ * Backend deletion is handled asynchronously
  * @param {Array} newCoordinates - New coordinate array
- * @param {string} membershipTier - User's membership tier
  * @param {string} excludeSearchId - Optional search ID to exclude from duplicate check
- * @returns {Promise<number>} Number of duplicates deleted
+ * @returns {Array<string>} Array of duplicate search IDs that were removed
  */
-async function deleteDuplicateSearches(newCoordinates, membershipTier, excludeSearchId = null) {
+function deleteDuplicateSearchesFromLocalStorage(newCoordinates, excludeSearchId = null) {
   const duplicateIds = findDuplicateSearches(newCoordinates, excludeSearchId);
 
   if (duplicateIds.length === 0) {
-    return 0;
+    return [];
   }
 
-  // Delete each duplicate (errors are already handled in deleteSearch)
-  for (const searchId of duplicateIds) {
-    await deleteSearch(searchId, membershipTier);
-  }
+  // Remove each duplicate from localStorage synchronously
+  duplicateIds.forEach(searchId => {
+    removeFromLocalStorageCache(searchId);
+  });
 
-  return duplicateIds.length;
+  return duplicateIds;
 }
 
 /**
  * Save a search to appropriate storage based on membership tier
+ * Uses hybrid sync/async approach: localStorage operations are synchronous,
+ * backend operations are queued for background processing
  * @param {Object} searchData - The search data to save
  * @param {string} membershipTier - User's membership tier
  * @param {string} originalSearchId - Optional ID of original search being replaced (for redo/edit)
  * @returns {Promise<boolean>} Success status
  */
 export async function saveSearch(searchData, membershipTier, originalSearchId = null) {
-  // Delete any duplicate searches (exclude originalSearchId to avoid double-deletion)
-  await deleteDuplicateSearches(searchData.coordinates, membershipTier, originalSearchId);
+  // STEP 1: SYNCHRONOUS - Handle localStorage duplicates immediately (fast!)
+  const duplicateIds = deleteDuplicateSearchesFromLocalStorage(
+    searchData.coordinates,
+    originalSearchId
+  );
 
-  // Also explicitly delete the original search if provided (for redo/edit scenarios)
+  // STEP 2: SYNCHRONOUS - Remove original search from localStorage if editing
   if (originalSearchId) {
-    await deleteSearch(originalSearchId, membershipTier);
+    removeFromLocalStorageCache(originalSearchId);
   }
 
   if (!isPremiumTier(membershipTier)) {
@@ -148,17 +160,55 @@ export async function saveSearch(searchData, membershipTier, originalSearchId = 
     return saveSearchToHistory(searchData, 'free');
   }
 
-  // Plus/Pro tier: save to backend first, then update cache
-  try {
-    await saveSearchToBackend(searchData);
-    addToLocalStorageCache(searchData);
-    return true;
-  } catch (error) {
-    console.error('Error saving search to backend:', error);
-    // Fallback: save to localStorage only
-    saveSearchToHistory(searchData, membershipTier);
-    throw error;
+  // STEP 3: SYNCHRONOUS - Add to localStorage cache immediately (UI depends on this!)
+  addToLocalStorageCache(searchData);
+
+  // STEP 4: ASYNCHRONOUS - Queue backend operations (doesn't block navigation!)
+
+  // Mark duplicates and original as pending deletion
+  duplicateIds.forEach(id => pendingDeletions.add(id));
+  if (originalSearchId) {
+    pendingDeletions.add(originalSearchId);
   }
+
+  syncQueue.enqueue(async () => {
+    // Delete duplicates from backend
+    for (const dupId of duplicateIds) {
+      try {
+        await deleteSearchFromBackend(dupId);
+        // Remove from pending deletions on success
+        pendingDeletions.delete(dupId);
+      } catch (error) {
+        // Already removed from localStorage, backend delete is best-effort
+        if (!error.message?.includes('404')) {
+          console.error(`[SyncQueue] Failed to delete duplicate ${dupId} from backend:`, error);
+        }
+        // Remove from pending even on error (it's gone or doesn't exist)
+        pendingDeletions.delete(dupId);
+      }
+    }
+
+    // Delete original from backend if editing
+    if (originalSearchId) {
+      try {
+        await deleteSearchFromBackend(originalSearchId);
+        // Remove from pending deletions on success
+        pendingDeletions.delete(originalSearchId);
+      } catch (error) {
+        if (!error.message?.includes('404')) {
+          console.error(`[SyncQueue] Failed to delete original ${originalSearchId} from backend:`, error);
+        }
+        // Remove from pending even on error (it's gone or doesn't exist)
+        pendingDeletions.delete(originalSearchId);
+      }
+    }
+
+    // Save new search to backend
+    await saveSearchToBackend(searchData);
+  });
+
+  // Return immediately after localStorage operations
+  return true;
 }
 
 /**
@@ -185,6 +235,7 @@ export function getSearchByIdFromStorage(searchId, membershipTier) {
 
 /**
  * Sync searches from backend to localStorage cache (premium users only)
+ * Merges backend data with local-only searches to avoid losing pending syncs
  * @param {string} membershipTier - User's membership tier
  * @param {number} limit - Maximum number of searches to fetch
  * @returns {Promise<Array>} Array of synced searches
@@ -197,12 +248,28 @@ export async function syncSearchesFromBackend(membershipTier, limit = 50) {
 
   try {
     const response = await getSearchesFromBackend(limit, 0);
-    const searches = response.searches || [];
+    const backendSearches = response.searches || [];
 
-    // Update localStorage cache with backend data
-    updateLocalStorageCache(searches);
+    // Get current localStorage to preserve searches that haven't synced yet
+    const localSearches = getSearchHistory();
 
-    return searches;
+    // Create a map of backend search IDs for fast lookup
+    const backendIds = new Set(backendSearches.map(s => s.id));
+
+    // Find local searches that aren't in backend yet (pending sync)
+    const localOnlySearches = localSearches.filter(s => !backendIds.has(s.id));
+
+    // Filter out searches that are pending deletion from backend
+    // This prevents deleted searches from reappearing during sync
+    const filteredBackendSearches = backendSearches.filter(s => !pendingDeletions.has(s.id));
+
+    // Merge: local-only searches + filtered backend searches
+    const mergedSearches = [...localOnlySearches, ...filteredBackendSearches];
+
+    // Update localStorage cache with merged data
+    updateLocalStorageCache(mergedSearches);
+
+    return mergedSearches;
   } catch (error) {
     console.error('Error syncing searches from backend:', error);
     // Return cached data on error
@@ -212,55 +279,72 @@ export async function syncSearchesFromBackend(membershipTier, limit = 50) {
 
 /**
  * Delete a specific search
+ * Uses hybrid sync/async approach: localStorage deletion is synchronous,
+ * backend deletion is queued for background processing
  * @param {string} searchId - The search ID to delete
  * @param {string} membershipTier - User's membership tier
  * @returns {Promise<boolean>} Success status
  */
 export async function deleteSearch(searchId, membershipTier) {
+  // SYNCHRONOUS - Remove from localStorage immediately
+  removeFromLocalStorageCache(searchId);
+
   if (!isPremiumTier(membershipTier)) {
-    // Free tier: delete from localStorage only
-    removeFromLocalStorageCache(searchId);
+    // Free tier: localStorage only, we're done
     return true;
   }
 
-  // Plus/Pro tier: delete from backend first, then update cache
-  try {
-    await deleteSearchFromBackend(searchId);
-    removeFromLocalStorageCache(searchId);
-    return true;
-  } catch (error) {
-    // If it's a 404, the search doesn't exist in backend - just remove from localStorage
-    if (error.message && error.message.includes('404')) {
-      console.log(`Search ${searchId} not found in backend, removing from localStorage only`);
-      removeFromLocalStorageCache(searchId);
-      return true;
+  // Mark as pending deletion to prevent reappearing during sync
+  pendingDeletions.add(searchId);
+
+  // ASYNCHRONOUS - Queue backend deletion (doesn't block UI)
+  syncQueue.enqueue(async () => {
+    try {
+      await deleteSearchFromBackend(searchId);
+      // Remove from pending deletions on success
+      pendingDeletions.delete(searchId);
+    } catch (error) {
+      // If it's a 404, the search doesn't exist in backend - that's fine
+      if (!error.message?.includes('404')) {
+        console.error(`[SyncQueue] Failed to delete search ${searchId} from backend:`, error);
+      }
+      // Remove from pending even on error (it's gone or doesn't exist)
+      pendingDeletions.delete(searchId);
     }
+  });
 
-    console.error('Error deleting search from backend:', error);
-    throw error;
-  }
+  // Return immediately after localStorage operation
+  return true;
 }
 
 /**
  * Clear all searches
+ * Uses hybrid sync/async approach: localStorage clearing is synchronous,
+ * backend clearing is queued for background processing
  * @param {string} membershipTier - User's membership tier
  * @returns {Promise<boolean>} Success status
  */
 export async function clearAllSearches(membershipTier) {
+  // SYNCHRONOUS - Clear localStorage immediately
+  clearSearchHistoryLocal();
+
   if (!isPremiumTier(membershipTier)) {
-    // Free tier: clear localStorage only
-    return clearSearchHistoryLocal();
+    // Free tier: localStorage only, we're done
+    return true;
   }
 
-  // Plus/Pro tier: clear backend first, then update cache
-  try {
-    await clearAllSearchesFromBackend();
-    clearSearchHistoryLocal();
-    return true;
-  } catch (error) {
-    console.error('Error clearing searches from backend:', error);
-    throw error;
-  }
+  // ASYNCHRONOUS - Queue backend clearing (doesn't block UI)
+  syncQueue.enqueue(async () => {
+    try {
+      await clearAllSearchesFromBackend();
+    } catch (error) {
+      console.error('[SyncQueue] Failed to clear searches from backend:', error);
+      // Don't throw - searches are already cleared from localStorage
+    }
+  });
+
+  // Return immediately after localStorage operation
+  return true;
 }
 
 /**
@@ -296,4 +380,25 @@ export async function migrateSearchesToBackend(membershipTier) {
   await syncSearchesFromBackend(membershipTier);
 
   return { migrated, failed, total: localSearches.length };
+}
+
+/**
+ * Get debug information about pending operations
+ * Useful for troubleshooting sync issues
+ * @returns {Object} Debug information
+ */
+export function getDebugInfo() {
+  return {
+    pendingDeletions: Array.from(pendingDeletions),
+    pendingDeletionCount: pendingDeletions.size,
+    localSearchCount: getSearchHistory().length,
+    syncQueueStatus: typeof window !== 'undefined' && window.getSyncQueueStatus
+      ? window.getSyncQueueStatus()
+      : null
+  };
+}
+
+// Expose debug info globally for development
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  window.getSearchDebugInfo = getDebugInfo;
 }

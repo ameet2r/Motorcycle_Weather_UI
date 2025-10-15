@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import LocationForm from "../components/LocationForm";
 import { generateSearchId } from "../utils/localStorage";
-import { saveSearch } from "../utils/searchStorage";
+import { saveSearch, getSearchByIdFromStorage } from "../utils/searchStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
 import { authenticatedPost, isAuthError } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -101,9 +101,15 @@ export default function NewSearchPage() {
       // Save to appropriate storage and delete duplicates/original (localStorage for free, backend for plus/pro)
       await saveSearch(searchData, membershipTier, originalSearchId);
 
+      // Verify search was saved to localStorage before navigating
+      const savedSearch = getSearchByIdFromStorage(searchData.id, membershipTier);
+      if (!savedSearch) {
+        throw new Error('Search was not properly saved to storage');
+      }
+
       setLoadingStep('Complete!');
       setSuccess(true);
-      navigate('/previous-searches');
+      navigate(`/forecast/${searchData.id}`);
 
     } catch (err) {
       console.error("Error fetching weather:", err);
