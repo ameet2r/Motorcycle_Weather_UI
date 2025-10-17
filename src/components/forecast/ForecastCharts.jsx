@@ -9,6 +9,8 @@ import {
   useMediaQuery,
   IconButton,
   Collapse,
+  Tooltip,
+  ClickAwayListener,
 } from '@mui/material';
 import {
   LineChart,
@@ -18,7 +20,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   ReferenceLine,
   Legend,
@@ -29,6 +31,7 @@ import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { formatTime, formatDateTime as formatDateTimeUtil } from '../../utils/dateTimeFormatters';
 
 /**
@@ -82,6 +85,7 @@ export default function ForecastCharts({ periods, solarInfo }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [expanded, setExpanded] = useState(true);
   const [chartType, setChartType] = useState('all'); // 'all', 'temp', 'wind', 'precip'
+  const [tooltipOpen, setTooltipOpen] = useState(false);
 
   if (!periods || periods.length === 0) {
     return null;
@@ -114,6 +118,9 @@ export default function ForecastCharts({ periods, solarInfo }) {
   const sunrise = solarInfo?.sunrise ? new Date(solarInfo.sunrise).getTime() : null;
   const sunset = solarInfo?.sunset ? new Date(solarInfo.sunset).getTime() : null;
 
+  // Get current time for "Now" reference line
+  const now = new Date().getTime();
+
   const handleChartTypeChange = (event, newChartType) => {
     if (newChartType !== null) {
       setChartType(newChartType);
@@ -121,6 +128,37 @@ export default function ForecastCharts({ periods, solarInfo }) {
   };
 
   const chartHeight = isMobile ? 200 : 250;
+
+  // Tooltip content for info icon
+  const tooltipContent = (
+    <Box sx={{ maxWidth: 350 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+        Chart Legend
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 1 }}>
+        The charts show weather trends over time with the following indicators:
+      </Typography>
+      <Box component="ul" sx={{ pl: 2, m: 0, mb: 1, fontSize: '0.875rem' }}>
+        <li><strong style={{ color: theme.palette.primary.main }}>Blue Vertical Line:</strong> Current time ("Now")</li>
+        <li><strong style={{ color: '#ffa726' }}>🌅 Orange Dashed Line:</strong> Sunrise time</li>
+        <li><strong style={{ color: '#7e57c2' }}>🌇 Purple Dashed Line:</strong> Sunset time</li>
+      </Box>
+      <Typography variant="body2" sx={{ mb: 0.5 }}>
+        <strong>Wind Speed Reference Lines:</strong>
+      </Typography>
+      <Box component="ul" sx={{ pl: 2, m: 0, mb: 1, fontSize: '0.875rem' }}>
+        <li><strong>Yellow (20mph):</strong> Caution - Windy conditions</li>
+        <li><strong>Red (30mph):</strong> Unsafe - Strong winds</li>
+      </Box>
+      <Typography variant="body2" sx={{ mb: 0.5 }}>
+        <strong>Precipitation Reference Lines:</strong>
+      </Typography>
+      <Box component="ul" sx={{ pl: 2, m: 0, fontSize: '0.875rem' }}>
+        <li><strong>Yellow (30%):</strong> Moderate chance of rain</li>
+        <li><strong>Red (50%):</strong> High chance of rain</li>
+      </Box>
+    </Box>
+  );
 
   return (
     <Paper
@@ -138,6 +176,43 @@ export default function ForecastCharts({ periods, solarInfo }) {
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Forecast Trends
           </Typography>
+          <ClickAwayListener onClickAway={() => setTooltipOpen(false)}>
+            <Tooltip
+              title={tooltipContent}
+              arrow
+              placement={isMobile ? 'bottom' : 'right'}
+              open={tooltipOpen}
+              disableFocusListener
+              disableHoverListener
+              disableTouchListener
+              componentsProps={{
+                tooltip: {
+                  sx: {
+                    bgcolor: 'background.paper',
+                    color: 'text.primary',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    boxShadow: 3,
+                    '& .MuiTooltip-arrow': {
+                      color: 'background.paper',
+                      '&::before': {
+                        border: '1px solid',
+                        borderColor: 'divider',
+                      }
+                    }
+                  }
+                }
+              }}
+            >
+              <IconButton
+                size="small"
+                sx={{ p: 0.5 }}
+                onClick={() => setTooltipOpen(!tooltipOpen)}
+              >
+                <InfoOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+              </IconButton>
+            </Tooltip>
+          </ClickAwayListener>
         </Box>
         <IconButton
           onClick={() => setExpanded(!expanded)}
@@ -190,7 +265,11 @@ export default function ForecastCharts({ periods, solarInfo }) {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis
-                  dataKey="time"
+                  dataKey="timestamp"
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
+                  scale="time"
+                  tickFormatter={(timestamp) => formatTime(new Date(timestamp).toISOString())}
                   stroke={theme.palette.text.secondary}
                   style={{ fontSize: isMobile ? '0.7rem' : '0.8rem' }}
                   interval={isMobile ? 'preserveStartEnd' : 0}
@@ -203,10 +282,10 @@ export default function ForecastCharts({ periods, solarInfo }) {
                   style={{ fontSize: isMobile ? '0.7rem' : '0.8rem' }}
                   domain={[tempDomainMin, tempDomainMax]}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <RechartsTooltip content={<CustomTooltip />} />
                 {sunrise && (
                   <ReferenceLine
-                    x={chartData.find(d => d.timestamp >= sunrise)?.time}
+                    x={sunrise}
                     stroke="#ffa726"
                     strokeDasharray="3 3"
                     label={{ value: '🌅', position: 'top' }}
@@ -214,12 +293,24 @@ export default function ForecastCharts({ periods, solarInfo }) {
                 )}
                 {sunset && (
                   <ReferenceLine
-                    x={chartData.find(d => d.timestamp >= sunset)?.time}
+                    x={sunset}
                     stroke="#7e57c2"
                     strokeDasharray="3 3"
                     label={{ value: '🌇', position: 'top' }}
                   />
                 )}
+                <ReferenceLine
+                  x={now}
+                  stroke={theme.palette.primary.main}
+                  strokeWidth={2}
+                  label={{
+                    value: 'Now',
+                    position: 'top',
+                    fill: theme.palette.primary.main,
+                    fontWeight: 'bold',
+                    fontSize: 12
+                  }}
+                />
                 <Area
                   type="monotone"
                   dataKey="temperature"
@@ -247,7 +338,11 @@ export default function ForecastCharts({ periods, solarInfo }) {
               <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis
-                  dataKey="time"
+                  dataKey="timestamp"
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
+                  scale="time"
+                  tickFormatter={(timestamp) => formatTime(new Date(timestamp).toISOString())}
                   stroke={theme.palette.text.secondary}
                   style={{ fontSize: isMobile ? '0.7rem' : '0.8rem' }}
                   interval={isMobile ? 'preserveStartEnd' : 0}
@@ -260,7 +355,7 @@ export default function ForecastCharts({ periods, solarInfo }) {
                   style={{ fontSize: isMobile ? '0.7rem' : '0.8rem' }}
                   domain={[0, windDomainMax]}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <RechartsTooltip content={<CustomTooltip />} />
                 <ReferenceLine
                   y={20}
                   stroke="#ffc107"
@@ -272,6 +367,34 @@ export default function ForecastCharts({ periods, solarInfo }) {
                   stroke="#f44336"
                   strokeDasharray="5 5"
                   label={{ value: 'Unsafe', position: 'right', fill: '#f44336', fontSize: 12 }}
+                />
+                {sunrise && (
+                  <ReferenceLine
+                    x={sunrise}
+                    stroke="#ffa726"
+                    strokeDasharray="3 3"
+                    label={{ value: '🌅', position: 'top' }}
+                  />
+                )}
+                {sunset && (
+                  <ReferenceLine
+                    x={sunset}
+                    stroke="#7e57c2"
+                    strokeDasharray="3 3"
+                    label={{ value: '🌇', position: 'top' }}
+                  />
+                )}
+                <ReferenceLine
+                  x={now}
+                  stroke={theme.palette.primary.main}
+                  strokeWidth={2}
+                  label={{
+                    value: 'Now',
+                    position: 'top',
+                    fill: theme.palette.primary.main,
+                    fontWeight: 'bold',
+                    fontSize: 12
+                  }}
                 />
                 <Line
                   type="monotone"
@@ -307,7 +430,11 @@ export default function ForecastCharts({ periods, solarInfo }) {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis
-                  dataKey="time"
+                  dataKey="timestamp"
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
+                  scale="time"
+                  tickFormatter={(timestamp) => formatTime(new Date(timestamp).toISOString())}
                   stroke={theme.palette.text.secondary}
                   style={{ fontSize: isMobile ? '0.7rem' : '0.8rem' }}
                   interval={isMobile ? 'preserveStartEnd' : 0}
@@ -320,7 +447,7 @@ export default function ForecastCharts({ periods, solarInfo }) {
                   style={{ fontSize: isMobile ? '0.7rem' : '0.8rem' }}
                   domain={[0, 100]}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <RechartsTooltip content={<CustomTooltip />} />
                 <ReferenceLine
                   y={30}
                   stroke="#ffc107"
@@ -332,6 +459,34 @@ export default function ForecastCharts({ periods, solarInfo }) {
                   stroke="#f44336"
                   strokeDasharray="5 5"
                   label={{ value: 'High', position: 'right', fill: '#f44336', fontSize: 12 }}
+                />
+                {sunrise && (
+                  <ReferenceLine
+                    x={sunrise}
+                    stroke="#ffa726"
+                    strokeDasharray="3 3"
+                    label={{ value: '🌅', position: 'top' }}
+                  />
+                )}
+                {sunset && (
+                  <ReferenceLine
+                    x={sunset}
+                    stroke="#7e57c2"
+                    strokeDasharray="3 3"
+                    label={{ value: '🌇', position: 'top' }}
+                  />
+                )}
+                <ReferenceLine
+                  x={now}
+                  stroke={theme.palette.primary.main}
+                  strokeWidth={2}
+                  label={{
+                    value: 'Now',
+                    position: 'top',
+                    fill: theme.palette.primary.main,
+                    fontWeight: 'bold',
+                    fontSize: 12
+                  }}
                 />
                 <Area
                   type="monotone"
