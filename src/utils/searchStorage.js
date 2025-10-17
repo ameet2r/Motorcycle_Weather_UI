@@ -72,6 +72,23 @@ function removeFromLocalStorageCache(searchId) {
 }
 
 /**
+ * Update the syncStatus of a specific search in localStorage
+ * @param {string} searchId - ID of search to update
+ * @param {string} syncStatus - New sync status ('pending' or 'synced')
+ */
+function updateSearchSyncStatus(searchId, syncStatus) {
+  try {
+    const searches = getSearchHistory();
+    const updatedSearches = searches.map(s =>
+      s.id === searchId ? { ...s, syncStatus } : s
+    );
+    updateLocalStorageCache(updatedSearches);
+  } catch (error) {
+    console.error('Error updating search syncStatus:', error);
+  }
+}
+
+/**
  * Check if two coordinate sets are equal (same lat/lng pairs, order independent)
  * @param {Array} coords1 - First coordinate array
  * @param {Array} coords2 - Second coordinate array
@@ -157,11 +174,15 @@ export async function saveSearch(searchData, membershipTier, originalSearchId = 
 
   if (!isPremiumTier(membershipTier)) {
     // Free tier: use localStorage only with 3 search limit
-    return saveSearchToHistory(searchData, 'free');
+    // Free tier doesn't sync to backend, so always 'synced' (no backend to sync to)
+    const searchWithStatus = { ...searchData, syncStatus: 'synced' };
+    return saveSearchToHistory(searchWithStatus, 'free');
   }
 
-  // STEP 3: SYNCHRONOUS - Add to localStorage cache immediately (UI depends on this!)
-  addToLocalStorageCache(searchData);
+  // STEP 3: SYNCHRONOUS - Add to localStorage cache immediately with 'pending' status
+  // This marks it as locally created, not yet confirmed on backend
+  const searchWithPendingStatus = { ...searchData, syncStatus: 'pending' };
+  addToLocalStorageCache(searchWithPendingStatus);
 
   // STEP 4: SYNCHRONOUS - Mark duplicates and original as pending deletion (tombstones)
   // This MUST happen before queueing async operations to prevent race conditions
@@ -205,6 +226,9 @@ export async function saveSearch(searchData, membershipTier, originalSearchId = 
 
     // Save new search to backend
     await saveSearchToBackend(searchData);
+
+    // Mark as 'synced' after successful backend save
+    updateSearchSyncStatus(searchData.id, 'synced');
   });
 
   // Return immediately after localStorage operations
@@ -260,6 +284,12 @@ export async function syncSearchesFromBackend(membershipTier, limit = 30, offset
     const backendSearches = response.searches || [];
     const total = response.total || backendSearches.length;
 
+    // Mark all backend searches as 'synced' since they came from backend
+    const syncedBackendSearches = backendSearches.map(s => ({
+      ...s,
+      syncStatus: 'synced'
+    }));
+
     // Get current localStorage to preserve searches that haven't synced yet
     const localSearches = getSearchHistory();
 
@@ -268,14 +298,18 @@ export async function syncSearchesFromBackend(membershipTier, limit = 30, offset
     if (offset === 0 && !append) {
       // Initial load: merge local-only searches with backend searches
       // Create a map of backend search IDs for fast lookup
-      const backendIds = new Set(backendSearches.map(s => s.id));
+      const backendIds = new Set(syncedBackendSearches.map(s => s.id));
 
-      // Find local searches that aren't in backend yet (pending sync)
-      const localOnlySearches = localSearches.filter(s => !backendIds.has(s.id));
+      // Only preserve local searches that are truly pending sync
+      // If a search has syncStatus === 'synced' but is not in backend,
+      // it was deleted on another device and should be removed
+      const localOnlySearches = localSearches.filter(s =>
+        !backendIds.has(s.id) && s.syncStatus === 'pending'
+      );
 
       // Filter out searches that are pending deletion from backend
       // This prevents deleted searches from reappearing during sync
-      const filteredBackendSearches = backendSearches.filter(s => !pendingDeletions.has(s.id));
+      const filteredBackendSearches = syncedBackendSearches.filter(s => !pendingDeletions.has(s.id));
 
       // DEDUPLICATION: Remove duplicate searches by coordinates (keep most recent)
       // This handles cases where backend has multiple searches with same coordinates
@@ -306,7 +340,7 @@ export async function syncSearchesFromBackend(membershipTier, limit = 30, offset
       updateLocalStorageCache(mergedSearches);
     } else {
       // Loading more: append to existing cache
-      const filteredBackendSearches = backendSearches.filter(s => !pendingDeletions.has(s.id));
+      const filteredBackendSearches = syncedBackendSearches.filter(s => !pendingDeletions.has(s.id));
 
       // Create a set of existing IDs and coordinates to avoid duplicates
       const existingIds = new Set(localSearches.map(s => s.id));
@@ -523,24 +557,35 @@ export async function migrateSearchesToBackend(membershipTier) {
     return { migrated: 0, failed: 0 };
   }
 
+  // Mark all local searches as 'pending' before migration
+  const searchesWithStatus = localSearches.map(s => ({
+    ...s,
+    syncStatus: 'pending'
+  }));
+  updateLocalStorageCache(searchesWithStatus);
+
   let migrated = 0;
   let failed = 0;
 
   // Migrate each search to backend
-  for (const search of localSearches) {
+  for (const search of searchesWithStatus) {
     try {
       await saveSearchToBackend(search);
+      // Mark as 'synced' after successful backend save
+      updateSearchSyncStatus(search.id, 'synced');
       migrated++;
     } catch (error) {
       console.error(`Failed to migrate search ${search.id}:`, error);
       failed++;
+      // Keep as 'pending' so it can be retried later
     }
   }
 
   // Re-sync from backend to ensure cache is up to date
+  // This will mark any remaining searches as 'synced' and clean up any inconsistencies
   await syncSearchesFromBackend(membershipTier);
 
-  return { migrated, failed, total: localSearches.length };
+  return { migrated, failed, total: searchesWithStatus.length };
 }
 
 /**
