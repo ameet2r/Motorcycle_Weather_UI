@@ -44,6 +44,15 @@ function extractWindSpeed(windSpeed) {
 }
 
 /**
+ * Extract numeric wind gust from string
+ */
+function extractWindGust(windGust) {
+  if (!windGust || typeof windGust !== 'string') return null;
+  const match = windGust.match(/(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
+/**
  * Custom tooltip for charts
  */
 function CustomTooltip({ active, payload, label }) {
@@ -97,6 +106,7 @@ export default function ForecastCharts({ periods, solarInfo }) {
     fullTime: formatDateTimeUtil(period.start_time),
     temperature: period.temperature,
     windSpeed: extractWindSpeed(period.wind_speed),
+    windGust: extractWindGust(period.wind_gust),
     windDirection: period.wind_direction,
     precipitation: period.probability_of_precip ?? 0,
     timestamp: new Date(period.start_time).getTime(),
@@ -111,7 +121,9 @@ export default function ForecastCharts({ periods, solarInfo }) {
   const tempDomainMax = Math.ceil(tempMax + tempRange * 0.1);
 
   const winds = chartData.map(d => d.windSpeed);
-  const windMax = Math.max(...winds);
+  const gusts = chartData.map(d => d.windGust).filter(g => g !== null);
+  const hasGustData = gusts.length > 0;
+  const windMax = Math.max(...winds, ...(gusts.length > 0 ? gusts : [0]));
   const windDomainMax = Math.ceil(windMax * 1.2);
 
   // Get sunrise/sunset times if available
@@ -331,7 +343,7 @@ export default function ForecastCharts({ periods, solarInfo }) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <AirIcon sx={{ fontSize: 20, color: 'secondary.main' }} />
               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                Wind Speed (mph)
+                Wind Speed{hasGustData ? ' & Gusts' : ''} (mph)
               </Typography>
             </Box>
             <ResponsiveContainer width="100%" height={chartHeight}>
@@ -356,6 +368,14 @@ export default function ForecastCharts({ periods, solarInfo }) {
                   domain={[0, windDomainMax]}
                 />
                 <RechartsTooltip content={<CustomTooltip />} />
+                {hasGustData && (
+                  <Legend
+                    wrapperStyle={{
+                      fontSize: isMobile ? '0.75rem' : '0.875rem',
+                      paddingTop: '10px'
+                    }}
+                  />
+                )}
                 <ReferenceLine
                   y={20}
                   stroke="#ffc107"
@@ -406,6 +426,20 @@ export default function ForecastCharts({ periods, solarInfo }) {
                   name="Wind Speed"
                   unit=" mph"
                 />
+                {hasGustData && (
+                  <Line
+                    type="monotone"
+                    dataKey="windGust"
+                    stroke="#00bcd4"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ fill: '#00bcd4', r: 2 }}
+                    activeDot={{ r: 5 }}
+                    name="Wind Gust"
+                    unit=" mph"
+                    connectNulls={false}
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </Box>
