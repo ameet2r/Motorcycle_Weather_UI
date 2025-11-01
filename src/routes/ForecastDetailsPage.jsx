@@ -48,6 +48,8 @@ import {
 import { formatDateTime, formatTime, isCurrentPeriod } from "../utils/dateTimeFormatters";
 import HourlyTimeline from "../components/forecast/HourlyTimeline";
 import ForecastCharts from "../components/forecast/ForecastCharts";
+import { fetchWeatherAlerts } from "../utils/api";
+import WarningIcon from "@mui/icons-material/Warning";
 
 export default function ForecastDetailsPage() {
   const { searchId } = useParams();
@@ -60,10 +62,20 @@ export default function ForecastDetailsPage() {
   const [activeDayTabs, setActiveDayTabs] = useState({});
   const [expandedPeriods, setExpandedPeriods] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
+  const [alerts, setAlerts] = useState({});
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [expandedAlerts, setExpandedAlerts] = useState({});
+  const [activeAlertTabs, setActiveAlertTabs] = useState({});
 
   useEffect(() => {
     loadSearchDetails();
   }, [searchId]);
+
+  useEffect(() => {
+    if (search) {
+      loadAlerts();
+    }
+  }, [search]);
 
   const loadSearchDetails = () => {
     setLoading(true);
@@ -92,6 +104,28 @@ export default function ForecastDetailsPage() {
       setError('Failed to load search details.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAlerts = async () => {
+    setAlertsLoading(true);
+    try {
+      // Build coordinates array for API request
+      const coordinates = search.coordinates.map(coord => ({
+        latLng: {
+          latitude: coord.latitude,
+          longitude: coord.longitude
+        }
+      }));
+
+      // Fetch alerts from backend
+      const response = await fetchWeatherAlerts(coordinates);
+      setAlerts(response.alerts || {});
+    } catch (err) {
+      console.error('Error loading weather alerts:', err);
+      // Don't show error to user - alerts are supplementary information
+    } finally {
+      setAlertsLoading(false);
     }
   };
 
@@ -138,6 +172,20 @@ export default function ForecastDetailsPage() {
     }));
   };
 
+  const handleToggleAlerts = (coordIndex) => {
+    setExpandedAlerts(prev => ({
+      ...prev,
+      [coordIndex]: !prev[coordIndex]
+    }));
+  };
+
+  const handleAlertTabChange = (locationIndex, newAlertIndex) => {
+    setActiveAlertTabs(prev => ({
+      ...prev,
+      [locationIndex]: newAlertIndex
+    }));
+  };
+
 
   const createPeriodToDateMapping = (periods) => {
     const mapping = {};
@@ -160,6 +208,25 @@ export default function ForecastDetailsPage() {
       }
     });
     return mapping;
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case 'extreme':
+        return 'error';
+      case 'severe':
+        return 'error';
+      case 'moderate':
+        return 'warning';
+      case 'minor':
+        return 'info';
+      default:
+        return 'warning';
+    }
+  };
+
+  const getCoordinateKey = (coord) => {
+    return `${coord.latitude}:${coord.longitude}`;
   };
 
   if (loading) {
@@ -370,6 +437,162 @@ export default function ForecastDetailsPage() {
                       </Grid>
                     </Grid>
                   </Box>
+
+                  {/* Weather Alerts Loading */}
+                  {alertsLoading && (
+                    <Box sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Skeleton variant="circular" width={24} height={24} />
+                        <Skeleton variant="text" width={200} height={32} />
+                      </Box>
+                      <Box sx={{ mt: 2 }}>
+                        <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* Weather Alerts Section */}
+                  {!alertsLoading && alerts[getCoordinateKey(coord)] && alerts[getCoordinateKey(coord)].length > 0 && (
+                    <Box sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <WarningIcon color="warning" />
+                          Active Weather Alerts ({alerts[getCoordinateKey(coord)].length})
+                        </Typography>
+                        <IconButton
+                          onClick={() => handleToggleAlerts(coordIndex)}
+                          size="small"
+                          sx={{
+                            transform: expandedAlerts[coordIndex] ? 'rotate(0deg)' : 'rotate(180deg)',
+                            transition: 'transform 0.3s',
+                          }}
+                        >
+                          {expandedAlerts[coordIndex] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        </IconButton>
+                      </Box>
+                      <Collapse in={expandedAlerts[coordIndex]} timeout="auto">
+                        <TabContext value={activeAlertTabs[coordIndex] !== undefined ? String(activeAlertTabs[coordIndex]) : "0"}>
+                          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                            <Tabs
+                              value={activeAlertTabs[coordIndex] !== undefined ? String(activeAlertTabs[coordIndex]) : "0"}
+                              onChange={(_e, newValue) => handleAlertTabChange(coordIndex, parseInt(newValue))}
+                              variant="scrollable"
+                              scrollButtons="auto"
+                              allowScrollButtonsMobile
+                              sx={{
+                                '& .MuiTab-root': {
+                                  textTransform: 'none',
+                                  fontWeight: 500,
+                                  fontSize: '0.875rem',
+                                  minHeight: 48,
+                                  px: 2,
+                                },
+                                '& .MuiTabs-scrollButtons': {
+                                  '&.Mui-disabled': { opacity: 0.3 }
+                                }
+                              }}
+                            >
+                              {alerts[getCoordinateKey(coord)].map((alert, alertIdx) => {
+                                const properties = alert.properties || {};
+                                const event = properties.event || 'Weather Alert';
+                                const severity = properties.severity || 'Unknown';
+                                const severityColor = getSeverityColor(severity);
+
+                                return (
+                                  <Tab
+                                    key={alertIdx}
+                                    label={event}
+                                    value={String(alertIdx)}
+                                    icon={<WarningIcon sx={{ fontSize: 16, color: severityColor === 'error' ? 'error.main' : severityColor === 'warning' ? 'warning.main' : 'info.main' }} />}
+                                    iconPosition="start"
+                                  />
+                                );
+                              })}
+                            </Tabs>
+                          </Box>
+
+                          {alerts[getCoordinateKey(coord)].map((alert, alertIdx) => {
+                            const properties = alert.properties || {};
+                            const severity = properties.severity || 'Unknown';
+                            const event = properties.event || 'Weather Alert';
+                            const headline = properties.headline || event;
+                            const description = properties.description || 'No details available';
+                            const instruction = properties.instruction;
+                            const onset = properties.onset ? new Date(properties.onset).toLocaleString() : null;
+                            const expires = properties.expires ? new Date(properties.expires).toLocaleString() : null;
+                            const severityColor = getSeverityColor(severity);
+
+                            return (
+                              <TabPanel key={alertIdx} value={String(alertIdx)} sx={{ p: 0 }}>
+                                <Paper
+                                  sx={{
+                                    p: { xs: 1.5, sm: 2 },
+                                    borderRadius: 2,
+                                    border: '2px solid',
+                                    borderColor: severityColor === 'error' ? 'error.main' : severityColor === 'warning' ? 'warning.main' : 'info.main',
+                                    backgroundColor: 'background.paper',
+                                    boxShadow: severityColor === 'error' ? '0 0 8px rgba(211, 47, 47, 0.3)' : severityColor === 'warning' ? '0 0 8px rgba(237, 108, 2, 0.3)' : '0 0 8px rgba(2, 136, 209, 0.3)',
+                                  }}
+                                >
+                                  <Stack spacing={1.5}>
+                                    {/* Header with event and severity */}
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                      <WarningIcon sx={{ color: severityColor === 'error' ? 'error.main' : severityColor === 'warning' ? 'warning.main' : 'info.main' }} />
+                                      <Typography variant="h6" sx={{ fontWeight: 600, flex: 1 }}>
+                                        {event}
+                                      </Typography>
+                                      {severity && severity !== 'Unknown' && (
+                                        <Chip
+                                          label={severity}
+                                          color={severityColor}
+                                          size="small"
+                                          sx={{ fontWeight: 600 }}
+                                        />
+                                      )}
+                                    </Box>
+
+                                    {/* Headline if different from event */}
+                                    {headline && headline !== event && (
+                                      <Typography variant="body2" sx={{ fontWeight: 500, fontStyle: 'italic' }}>
+                                        {headline}
+                                      </Typography>
+                                    )}
+
+                                    {/* Description */}
+                                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line', fontSize: '0.875rem' }}>
+                                      {description}
+                                    </Typography>
+
+                                    {/* Instructions */}
+                                    {instruction && (
+                                      <Box
+                                        sx={{
+                                          mt: 1,
+                                          p: 1.5,
+                                          backgroundColor: severityColor === 'error' ? 'rgba(211, 47, 47, 0.05)' : severityColor === 'warning' ? 'rgba(237, 108, 2, 0.05)' : 'rgba(2, 136, 209, 0.05)',
+                                          borderRadius: 1,
+                                          borderLeft: '3px solid',
+                                          borderLeftColor: severityColor === 'error' ? 'error.main' : severityColor === 'warning' ? 'warning.main' : 'info.main'
+                                        }}
+                                      >
+                                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                          <WarningIcon sx={{ fontSize: 16 }} />
+                                          Safety Instructions:
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-line', fontSize: '0.875rem' }}>
+                                          {instruction}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Paper>
+                              </TabPanel>
+                            );
+                          })}
+                        </TabContext>
+                      </Collapse>
+                    </Box>
+                  )}
 
                   {/* Day Tabs */}
                   <Box sx={{ p: { xs: 1, sm: 1.5 } }}>

@@ -160,3 +160,12 @@ export const isAuthError = (error) => {
          error.message.includes('No authenticated user') ||
          error.message.includes('Access denied');
 };
+
+/**
+ * Fetch active weather alerts for specified coordinates
+ * @param {Array<{latLng: {latitude: string, longitude: string}}>} coordinates - Array of coordinates to check
+ * @returns {Promise<{alerts: Object, user_info: Object}>} - Map of coordinate keys to alerts
+ */
+export const fetchWeatherAlerts = async (coordinates) => {
+  return authenticatedPost('/WeatherAlerts/', { coordinates });
+};
