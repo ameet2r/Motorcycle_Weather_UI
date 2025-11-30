@@ -224,8 +224,22 @@ export async function saveSearch(searchData, membershipTier, originalSearchId = 
       }
     }
 
-    // Save new search to backend
-    await saveSearchToBackend(searchData);
+    // Create MINIMAL payload for backend (strip large forecast data fields)
+    // This reduces payload size by ~99% (from ~375 KB to ~2 KB for 5-location search)
+    const minimalSearchData = {
+      id: searchData.id,
+      timestamp: searchData.timestamp,
+      coordinates: searchData.coordinates.map(coord => ({
+        key: coord.key,
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+        address: coord.address
+        // Exclude: elevation (~20 bytes), periods (~75 KB), summary (~2 KB)
+      }))
+    };
+
+    // Save minimal data to backend (fast, non-blocking)
+    await saveSearchToBackend(minimalSearchData);
 
     // Mark as 'synced' after successful backend save
     updateSearchSyncStatus(searchData.id, 'synced');
@@ -280,18 +294,39 @@ export async function syncSearchesFromBackend(membershipTier, limit = 30, offset
   }
 
   try {
+    // 1. Fetch from backend (minimal data - coordinates only, no periods/summary)
     const response = await getSearchesFromBackend(limit, offset);
     const backendSearches = response.searches || [];
     const total = response.total || backendSearches.length;
 
-    // Mark all backend searches as 'synced' since they came from backend
-    const syncedBackendSearches = backendSearches.map(s => ({
-      ...s,
-      syncStatus: 'synced'
-    }));
-
-    // Get current localStorage to preserve searches that haven't synced yet
+    // 2. Get local storage data (has full forecasts with periods/summary)
     const localSearches = getSearchHistory();
+    const localSearchMap = new Map(localSearches.map(s => [s.id, s]));
+
+    // 3. Enrich backend searches with local forecast data if available
+    const enrichedBackendSearches = backendSearches.map(backendSearch => {
+      const localMatch = localSearchMap.get(backendSearch.id);
+
+      if (localMatch) {
+        // Found local forecast data - use it (has periods/summary/elevation)
+        return {
+          ...backendSearch,
+          coordinates: localMatch.coordinates,  // Use local coordinates (full forecast data)
+          syncStatus: 'synced',
+          cloudOnly: false  // Has local forecast data
+        };
+      } else {
+        // No local data - mark as cloud-only (coordinates without forecast)
+        return {
+          ...backendSearch,
+          syncStatus: 'synced',
+          cloudOnly: true  // Missing local forecast data - will need to redo search
+        };
+      }
+    });
+
+    // Use enriched searches instead of original backend searches
+    const syncedBackendSearches = enrichedBackendSearches;
 
     let mergedSearches;
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Typography,
   Stack,
@@ -81,6 +81,7 @@ export default function PreviousSearchesPage() {
   const [searchSource, setSearchSource] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuth();
   const { membershipTier } = useUser();
 
@@ -99,6 +100,23 @@ export default function PreviousSearchesPage() {
   useEffect(() => {
     loadSearchHistory();
   }, []);
+
+  // Auto-redo search when redirected from ForecastDetailsPage
+  useEffect(() => {
+    if (location.state?.redoSearchId && searches.length > 0 && !redoLoading) {
+      // Find the search to redo
+      const redoSearch = searches.find(s => s.id === location.state.redoSearchId);
+
+      if (redoSearch) {
+        console.log('Auto-redoing search:', location.state.redoSearchId);
+        // Automatically trigger redo for this search
+        handleRedoSearch(redoSearch);
+      }
+
+      // Clear the state after handling (prevent infinite loop)
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, searches, redoLoading]);
 
   const loadSearchHistory = async () => {
     setLoading(true);

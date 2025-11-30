@@ -83,22 +83,44 @@ export default function ForecastDetailsPage() {
 
     try {
       const searchData = getSearchByIdFromStorage(searchId, membershipTier);
+
       if (!searchData) {
         setError('Search not found. It may have been deleted or expired.');
-      } else {
-        setSearch(searchData);
-        // Initialize the first location's day tab and set the selected date
-        const initialDayTabs = {};
-        if (searchData.coordinates.length > 0) {
-          const dates = Object.keys(searchData.coordinates[0].summary.dailySummaries).sort();
-          if (dates.length > 0) {
-            const firstDate = dates[0];
-            initialDayTabs[0] = firstDate;
-            setSelectedDate(firstDate);
-          }
-        }
-        setActiveDayTabs(initialDayTabs);
+        setLoading(false);
+        return;
       }
+
+      // Check if this search has local forecast data (periods array)
+      // All coordinates must have periods to display forecast
+      const hasForecastData = searchData.coordinates &&
+        searchData.coordinates.length > 0 &&
+        searchData.coordinates.every(coord =>
+          coord.periods && Array.isArray(coord.periods) && coord.periods.length > 0
+        );
+
+      if (!hasForecastData) {
+        // Cloud-only search - no local forecast data
+        // This happens when search was created on another device
+        setError('noForecastData');  // Special error state for redo UI
+        setSearch(searchData);  // Still set search for metadata (coordinates, address)
+        setLoading(false);
+        return;
+      }
+
+      // Has full forecast data - proceed normally
+      setSearch(searchData);
+
+      // Initialize the first location's day tab and set the selected date
+      const initialDayTabs = {};
+      if (searchData.coordinates.length > 0) {
+        const dates = Object.keys(searchData.coordinates[0].summary.dailySummaries).sort();
+        if (dates.length > 0) {
+          const firstDate = dates[0];
+          initialDayTabs[0] = firstDate;
+          setSelectedDate(firstDate);
+        }
+      }
+      setActiveDayTabs(initialDayTabs);
     } catch (err) {
       console.error('Error loading search details:', err);
       setError('Failed to load search details.');
@@ -131,6 +153,17 @@ export default function ForecastDetailsPage() {
 
   const handleBackClick = () => {
     navigate('/previous-searches');
+  };
+
+  const handleRedoSearch = (search) => {
+    // Navigate to PreviousSearchesPage and trigger redo
+    // Pass search data as state so it can be automatically redone
+    navigate('/previous-searches', {
+      state: {
+        redoSearchId: search.id,
+        coordinates: search.coordinates
+      }
+    });
   };
 
   const handleTabChange = (_event, newValue) => {
@@ -262,6 +295,65 @@ export default function ForecastDetailsPage() {
     );
   }
 
+  // Special UI for cloud-only searches (no local forecast data)
+  if (error === 'noForecastData' && search) {
+    return (
+      <Box className="fade-in">
+        <Stack spacing={3}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={handleBackClick}
+            variant="outlined"
+            sx={{
+              alignSelf: 'flex-start',
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 500
+            }}
+          >
+            Back to Previous Searches
+          </Button>
+
+          <Alert
+            severity="info"
+            sx={{ borderRadius: 2, p: 3 }}
+          >
+            <Typography variant="h6" gutterBottom>
+              Forecast Data Not Available Locally
+            </Typography>
+            <Typography variant="body2" paragraph>
+              This search was created on another device. To view the forecast, you'll need to fetch current weather data.
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <strong>Search Locations:</strong>
+            </Typography>
+            <Stack spacing={1} sx={{ mb: 3 }}>
+              {search.coordinates.map((coord, idx) => (
+                <Chip
+                  key={idx}
+                  icon={<LocationOnIcon />}
+                  label={coord.address || `${coord.latitude}, ${coord.longitude}`}
+                  variant="outlined"
+                />
+              ))}
+            </Stack>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => handleRedoSearch(search)}
+              sx={{ mt: 2 }}
+            >
+              Redo Search to Fetch Current Weather
+            </Button>
+          </Alert>
+        </Stack>
+      </Box>
+    );
+  }
+
+  // Error or search not found
   if (error || !search) {
     return (
       <Box className="fade-in">
