@@ -27,15 +27,21 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
     let allDates = new Set();
 
     search.coordinates.forEach(coord => {
-      Object.keys(coord.summary.dailySummaries).forEach(date => {
-        allDates.add(date);
-      });
+      // Check if summary and dailySummaries exist (cloud-only searches don't have forecast data)
+      if (coord.summary && coord.summary.dailySummaries) {
+        Object.keys(coord.summary.dailySummaries).forEach(date => {
+          allDates.add(date);
+        });
+      }
     });
 
     return allDates.size;
   };
 
   const dayCount = calculateDayCount();
+
+  // Check if this is a cloud-only search (has coordinates but no forecast data)
+  const isCloudOnly = search.cloudOnly || search.coordinates.some(coord => !coord.summary);
 
   return (
     <Card
@@ -77,13 +83,24 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
                   variant="outlined"
                   sx={{ height: 22, fontSize: '0.75rem' }}
                 />
-                <Chip
-                  icon={<CalendarTodayIcon sx={{ fontSize: '14px !important' }} />}
-                  label={`${dayCount} day${dayCount > 1 ? 's' : ''}`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ height: 22, fontSize: '0.75rem' }}
-                />
+                {!isCloudOnly && dayCount > 0 && (
+                  <Chip
+                    icon={<CalendarTodayIcon sx={{ fontSize: '14px !important' }} />}
+                    label={`${dayCount} day${dayCount > 1 ? 's' : ''}`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ height: 22, fontSize: '0.75rem' }}
+                  />
+                )}
+                {isCloudOnly && (
+                  <Chip
+                    label="Cloud Only"
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                    sx={{ height: 22, fontSize: '0.75rem' }}
+                  />
+                )}
               </Box>
             </Box>
           </Box>
