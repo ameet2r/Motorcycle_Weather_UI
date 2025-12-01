@@ -310,13 +310,20 @@ export default function ForecastDetailsPage() {
       setRedoLoadingStep('Complete!');
       setRedoSuccess(true);
 
-      // Navigate to the new search details
+      // Brief delay to show success, then clean up and navigate
       setTimeout(() => {
-        navigate(`/forecast/${searchData.id}`);
-      }, 500);
+        setRedoLoading(false);
+        setRedoLoadingStep('');
+        setRedoSuccess(false);
+        navigate(`/forecast/${searchData.id}`, { replace: true });
+      }, 600);
 
     } catch (err) {
       console.error("Error redoing search:", err);
+
+      // Always reset loading state on error
+      setRedoLoading(false);
+      setRedoLoadingStep('');
 
       // Handle authentication errors
       if (isAuthError(err)) {
@@ -332,11 +339,6 @@ export default function ForecastDetailsPage() {
         }, 2000);
       } else {
         setRedoError(err.message || 'An unexpected error occurred while fetching weather data');
-      }
-    } finally {
-      if (!redoSuccess) {
-        setRedoLoading(false);
-        setRedoLoadingStep('');
       }
     }
   };
