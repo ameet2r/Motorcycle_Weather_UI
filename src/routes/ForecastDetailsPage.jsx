@@ -475,58 +475,144 @@ export default function ForecastDetailsPage() {
   // Special UI for cloud-only searches (no local forecast data)
   if (error === 'noForecastData' && search) {
     return (
-      <Box className="fade-in">
-        <Stack spacing={3}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={handleBackClick}
-            variant="outlined"
+      <>
+        <Box className="fade-in">
+          <Stack spacing={3}>
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={handleBackClick}
+              variant="outlined"
+              sx={{
+                alignSelf: 'flex-start',
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 500
+              }}
+            >
+              Back to Previous Searches
+            </Button>
+
+            <Alert
+              severity="info"
+              sx={{ borderRadius: 2, p: 3 }}
+            >
+              <Typography variant="h6" gutterBottom>
+                Forecast Data Not Available Locally
+              </Typography>
+              <Typography variant="body2" paragraph>
+                This search was created on another device. To view the forecast, you'll need to fetch current weather data.
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <strong>Search Locations:</strong>
+              </Typography>
+              <Stack spacing={1} sx={{ mb: 3 }}>
+                {search.coordinates.map((coord, idx) => (
+                  <Chip
+                    key={idx}
+                    icon={<LocationOnIcon />}
+                    label={coord.address || `${coord.latitude}, ${coord.longitude}`}
+                    variant="outlined"
+                  />
+                ))}
+              </Stack>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => handleRedoSearch(search)}
+                disabled={redoLoading}
+                startIcon={redoLoading ? <CircularProgress size={16} /> : undefined}
+                sx={{ mt: 2 }}
+              >
+                {redoLoading ? 'Fetching...' : 'Redo Search to Fetch Current Weather'}
+              </Button>
+            </Alert>
+
+            {/* Error Alert */}
+            {redoError && (
+              <Fade in={true}>
+                <Alert
+                  severity="error"
+                  onClose={() => setRedoError(null)}
+                  sx={{ borderRadius: 2 }}
+                >
+                  <Typography variant="body2">
+                    <strong>Error:</strong> {redoError}
+                  </Typography>
+                </Alert>
+              </Fade>
+            )}
+
+            {/* Success Alert */}
+            {redoSuccess && (
+              <Fade in={true}>
+                <Alert
+                  severity="success"
+                  sx={{ borderRadius: 2 }}
+                >
+                  <Typography variant="body2">
+                    <strong>Success!</strong> Weather data retrieved successfully. Redirecting to updated results...
+                  </Typography>
+                </Alert>
+              </Fade>
+            )}
+          </Stack>
+        </Box>
+
+        {/* Loading Backdrop */}
+        <Backdrop
+          sx={{
+            color: '#fff',
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            backdropFilter: 'blur(4px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)'
+          }}
+          open={redoLoading}
+        >
+          <Paper
+            elevation={3}
             sx={{
-              alignSelf: 'flex-start',
-              borderRadius: 2,
-              px: 3,
-              py: 1,
-              textTransform: 'none',
-              fontWeight: 500
+              p: 4,
+              borderRadius: 3,
+              textAlign: 'center',
+              minWidth: 300,
+              backgroundColor: 'background.paper'
             }}
           >
-            Back to Previous Searches
-          </Button>
+            <Box sx={{ mb: 3 }}>
+              <CloudIcon
+                sx={{
+                  fontSize: 48,
+                  color: 'primary.main',
+                }}
+              />
+            </Box>
 
-          <Alert
-            severity="info"
-            sx={{ borderRadius: 2, p: 3 }}
-          >
-            <Typography variant="h6" gutterBottom>
-              Forecast Data Not Available Locally
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Redoing Weather Search
             </Typography>
-            <Typography variant="body2" paragraph>
-              This search was created on another device. To view the forecast, you'll need to fetch current weather data.
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              {redoLoadingStep}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              <strong>Search Locations:</strong>
-            </Typography>
-            <Stack spacing={1} sx={{ mb: 3 }}>
-              {search.coordinates.map((coord, idx) => (
-                <Chip
-                  key={idx}
-                  icon={<LocationOnIcon />}
-                  label={coord.address || `${coord.latitude}, ${coord.longitude}`}
-                  variant="outlined"
-                />
-              ))}
-            </Stack>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => handleRedoSearch(search)}
-              sx={{ mt: 2 }}
-            >
-              Redo Search to Fetch Current Weather
-            </Button>
-          </Alert>
-        </Stack>
-      </Box>
+
+            <LinearProgress
+              sx={{
+                borderRadius: 1,
+                height: 6,
+                '& .MuiLinearProgress-bar': {
+                  borderRadius: 1
+                }
+              }}
+            />
+
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <CircularProgress size={24} thickness={4} />
+            </Box>
+          </Paper>
+        </Backdrop>
+      </>
     );
   }
 
@@ -567,8 +653,9 @@ export default function ForecastDetailsPage() {
   }
 
   return (
-    <Box className="fade-in">
-      <Stack spacing={4}>
+    <>
+      <Box className="fade-in">
+        <Stack spacing={4}>
         {/* Navigation */}
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <Button
@@ -1222,7 +1309,8 @@ export default function ForecastDetailsPage() {
             </Alert>
           </Fade>
         )}
-      </Stack>
+        </Stack>
+      </Box>
 
       {/* Loading Backdrop */}
       <Backdrop
@@ -1276,6 +1364,6 @@ export default function ForecastDetailsPage() {
           </Box>
         </Paper>
       </Backdrop>
-    </Box>
+    </>
   );
 }
