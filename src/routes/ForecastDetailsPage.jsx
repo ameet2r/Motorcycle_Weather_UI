@@ -20,6 +20,8 @@ import {
   IconButton,
   Fade,
   CircularProgress,
+  Backdrop,
+  LinearProgress,
 } from "@mui/material";
 import { TabContext, TabPanel } from "@mui/lab";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -40,9 +42,9 @@ import Brightness4Icon from '@mui/icons-material/Brightness4';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { getSearchByIdFromStorage, getAllSearches } from "../utils/searchStorage";
+import { getSearchByIdFromStorage, getAllSearches, saveSearch } from "../utils/searchStorage";
 import { updateSearchName } from "../utils/searchApi";
-import { getSearchHistory } from "../utils/localStorage";
+import { getSearchHistory, generateSearchId } from "../utils/localStorage";
 import SearchNameInput from "../components/SearchNameInput";
 import { useUser } from "../contexts/UserContext";
 import {
@@ -52,16 +54,21 @@ import {
   formatDateWithRelativeDay,
   formatSolarInfoDetailed,
   getSolarEventColor,
+  generateCoordinateSummary,
 } from "../utils/forecastSummary";
 import { formatDateTime, formatTime, isCurrentPeriod } from "../utils/dateTimeFormatters";
 import HourlyTimeline from "../components/forecast/HourlyTimeline";
 import ForecastCharts from "../components/forecast/ForecastCharts";
-import { fetchWeatherAlerts } from "../utils/api";
+import { fetchWeatherAlerts, authenticatedPost, isAuthError } from "../utils/api";
+import { useAuth } from "../contexts/AuthContext";
 import WarningIcon from "@mui/icons-material/Warning";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import CloudIcon from "@mui/icons-material/Cloud";
 
 export default function ForecastDetailsPage() {
   const { searchId } = useParams();
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const { membershipTier } = useUser();
   const [search, setSearch] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +85,10 @@ export default function ForecastDetailsPage() {
   const [editedName, setEditedName] = useState('');
   const [nameError, setNameError] = useState('');
   const [savingName, setSavingName] = useState(false);
+  const [redoLoading, setRedoLoading] = useState(false);
+  const [redoLoadingStep, setRedoLoadingStep] = useState('');
+  const [redoError, setRedoError] = useState(null);
+  const [redoSuccess, setRedoSuccess] = useState(false);
 
   const isPremium = membershipTier === 'plus' || membershipTier === 'pro';
 
@@ -227,15 +238,107 @@ export default function ForecastDetailsPage() {
     navigate('/previous-searches');
   };
 
-  const handleRedoSearch = (search) => {
-    // Navigate to PreviousSearchesPage and trigger redo
-    // Pass search data as state so it can be automatically redone
-    navigate('/previous-searches', {
-      state: {
-        redoSearchId: search.id,
-        coordinates: search.coordinates
+  const handleRedoSearch = async (search) => {
+    setRedoLoading(true);
+    setRedoError(null);
+    setRedoSuccess(false);
+
+    try {
+      setRedoLoadingStep('Preparing search data...');
+
+      // Transform search coordinates back to API format
+      const apiCoordinates = {
+        coordinates: search.coordinates.map(coord => ({
+          latLng: {
+            latitude: coord.latitude,
+            longitude: coord.longitude
+          },
+          address: coord.address || ""
+        }))
+      };
+
+      setRedoLoadingStep('Fetching weather data...');
+
+      // Use authenticated API call
+      const result = await authenticatedPost('/CoordinatesToWeather/', apiCoordinates);
+      const map = result.coordinates_to_forecasts_map;
+
+      setRedoLoadingStep('Processing forecast data...');
+
+      // Create address mapping from search coordinates
+      const addressMap = {};
+      search.coordinates.forEach(coord => {
+        const key = `${coord.latitude}:${coord.longitude}`;
+        addressMap[key] = coord.address || "";
+      });
+
+      // Transform the data for storage
+      const coordinatesData = Object.entries(map).map(([key, forecastsForKey]) => {
+        // Each coordinate can have multiple forecasts, but we'll take the first one
+        const forecast = forecastsForKey[0];
+
+        return {
+          key,
+          latitude: key.split(':')[0],
+          longitude: key.split(':')[1],
+          address: addressMap[key] || "",
+          elevation: forecast.elevation ? String(forecast.elevation) : "",
+          periods: forecast.periods,
+          summary: generateCoordinateSummary(forecast, key.split(':')[0], key.split(':')[1])
+        };
+      });
+
+      setRedoLoadingStep('Saving search results...');
+
+      // Create search object for storage
+      const searchData = {
+        id: generateSearchId(),
+        timestamp: new Date().toISOString(),
+        name: search.name || undefined,
+        coordinates: coordinatesData
+      };
+
+      // Save to appropriate storage and delete the original search
+      await saveSearch(searchData, membershipTier, search.id);
+
+      // Verify search was saved to localStorage before navigating
+      const savedSearch = getSearchByIdFromStorage(searchData.id, membershipTier);
+      if (!savedSearch) {
+        throw new Error('Search was not properly saved to storage');
       }
-    });
+
+      setRedoLoadingStep('Complete!');
+      setRedoSuccess(true);
+
+      // Navigate to the new search details
+      setTimeout(() => {
+        navigate(`/forecast/${searchData.id}`);
+      }, 500);
+
+    } catch (err) {
+      console.error("Error redoing search:", err);
+
+      // Handle authentication errors
+      if (isAuthError(err)) {
+        setRedoError('Your session has expired. Please log in again.');
+        // Logout and redirect to auth page
+        setTimeout(async () => {
+          try {
+            await logout();
+            navigate('/auth');
+          } catch (logoutError) {
+            console.error('Logout error:', logoutError);
+          }
+        }, 2000);
+      } else {
+        setRedoError(err.message || 'An unexpected error occurred while fetching weather data');
+      }
+    } finally {
+      if (!redoSuccess) {
+        setRedoLoading(false);
+        setRedoLoadingStep('');
+      }
+    }
   };
 
   const handleTabChange = (_event, newValue) => {
@@ -465,24 +568,45 @@ export default function ForecastDetailsPage() {
     <Box className="fade-in">
       <Stack spacing={4}>
         {/* Navigation */}
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBackClick}
-          variant="outlined"
-          sx={{
-            alignSelf: 'flex-start',
-            borderRadius: 2,
-            px: 3,
-            py: 1,
-            textTransform: 'none',
-            fontWeight: 500,
-            '&:hover': {
-              transform: 'translateX(-4px)'
-            }
-          }}
-        >
-          Back to Previous Searches
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={handleBackClick}
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 500,
+              '&:hover': {
+                transform: 'translateX(-4px)'
+              }
+            }}
+          >
+            Back to Previous Searches
+          </Button>
+          <Button
+            startIcon={redoLoading ? <CircularProgress size={16} /> : <RefreshIcon />}
+            onClick={() => handleRedoSearch(search)}
+            variant="contained"
+            disabled={redoLoading}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 500,
+              boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+              '&:hover': {
+                boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                transform: 'translateY(-2px)'
+              }
+            }}
+          >
+            {redoLoading ? 'Fetching...' : 'Redo Search'}
+          </Button>
+        </Box>
 
         {/* Header Section */}
         <Box sx={{ textAlign: 'center', mb: 2 }}>
@@ -1067,7 +1191,89 @@ export default function ForecastDetailsPage() {
             </TabPanel>
           ))}
         </TabContext>
+
+        {/* Error Alert */}
+        {redoError && (
+          <Fade in={true}>
+            <Alert
+              severity="error"
+              onClose={() => setRedoError(null)}
+              sx={{ borderRadius: 2 }}
+            >
+              <Typography variant="body2">
+                <strong>Error:</strong> {redoError}
+              </Typography>
+            </Alert>
+          </Fade>
+        )}
+
+        {/* Success Alert */}
+        {redoSuccess && (
+          <Fade in={true}>
+            <Alert
+              severity="success"
+              sx={{ borderRadius: 2 }}
+            >
+              <Typography variant="body2">
+                <strong>Success!</strong> Weather data retrieved successfully. Redirecting to updated results...
+              </Typography>
+            </Alert>
+          </Fade>
+        )}
       </Stack>
+
+      {/* Loading Backdrop */}
+      <Backdrop
+        sx={{
+          color: '#fff',
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backdropFilter: 'blur(4px)',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)'
+        }}
+        open={redoLoading}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            borderRadius: 3,
+            textAlign: 'center',
+            minWidth: 300,
+            backgroundColor: 'background.paper'
+          }}
+        >
+          <Box sx={{ mb: 3 }}>
+            <CloudIcon
+              sx={{
+                fontSize: 48,
+                color: 'primary.main',
+              }}
+            />
+          </Box>
+
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            Redoing Weather Search
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            {redoLoadingStep}
+          </Typography>
+
+          <LinearProgress
+            sx={{
+              borderRadius: 1,
+              height: 6,
+              '& .MuiLinearProgress-bar': {
+                borderRadius: 1
+              }
+            }}
+          />
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+            <CircularProgress size={24} thickness={4} />
+          </Box>
+        </Paper>
+      </Backdrop>
     </Box>
   );
 }
