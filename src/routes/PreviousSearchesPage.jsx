@@ -323,6 +323,7 @@ export default function PreviousSearchesPage() {
       const searchData = {
         id: generateSearchId(),
         timestamp: new Date().toISOString(),
+        name: search.name || undefined,
         coordinates: coordinatesData
       };
 
