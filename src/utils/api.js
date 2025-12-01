@@ -151,6 +151,26 @@ export const authenticatedDelete = async (endpoint) => {
 };
 
 /**
+ * Makes an authenticated PATCH request with JSON body
+ * @param {string} endpoint - API endpoint
+ * @param {object} data - Data to send in request body
+ * @returns {Promise<any>} - Parsed JSON response
+ */
+export const authenticatedPatch = async (endpoint, data) => {
+  const response = await authenticatedFetch(endpoint, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API request failed (${response.status}): ${errorText}`);
+  }
+
+  return response.json();
+};
+
+/**
  * Checks if an error is an authentication error that requires re-login
  * @param {Error} error - The error to check
  * @returns {boolean} - True if it's an auth error requiring re-login

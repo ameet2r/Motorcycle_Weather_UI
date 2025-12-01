@@ -18,6 +18,8 @@ import {
   Tab,
   Collapse,
   IconButton,
+  Fade,
+  CircularProgress,
 } from "@mui/material";
 import { TabContext, TabPanel } from "@mui/lab";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -35,7 +37,13 @@ import Brightness3Icon from '@mui/icons-material/Brightness3';
 import WbTwilightIcon from '@mui/icons-material/WbTwilight';
 import Brightness6Icon from '@mui/icons-material/Brightness6';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
-import { getSearchByIdFromStorage } from "../utils/searchStorage";
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
+import { getSearchByIdFromStorage, getAllSearches } from "../utils/searchStorage";
+import { updateSearchName } from "../utils/searchApi";
+import { getSearchHistory } from "../utils/localStorage";
+import SearchNameInput from "../components/SearchNameInput";
 import { useUser } from "../contexts/UserContext";
 import {
   formatTemperatureRange,
@@ -66,6 +74,70 @@ export default function ForecastDetailsPage() {
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [expandedAlerts, setExpandedAlerts] = useState({});
   const [activeAlertTabs, setActiveAlertTabs] = useState({});
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
+  const isPremium = membershipTier === 'plus' || membershipTier === 'pro';
+
+  const validateName = async (name) => {
+    if (!name || name.trim() === '') {
+      setNameError('');
+      return true;
+    }
+
+    const localSearches = getAllSearches(membershipTier);
+    const duplicate = localSearches.find(s =>
+      s.id !== searchId &&
+      s.name &&
+      s.name.toLowerCase().trim() === name.toLowerCase().trim()
+    );
+
+    if (duplicate) {
+      setNameError('A search with this name already exists');
+      return false;
+    }
+
+    setNameError('');
+    return true;
+  };
+
+  const handleSaveName = async () => {
+    const isValid = await validateName(editedName);
+    if (!isValid) return;
+
+    setSavingName(true);
+    try {
+      // Update backend for premium users
+      if (isPremium) {
+        await updateSearchName(searchId, editedName.trim() || '');
+      }
+
+      // Update local state
+      setSearch(prev => ({ ...prev, name: editedName.trim() || undefined }));
+
+      // Update localStorage
+      const localSearches = getSearchHistory();
+      const updatedSearches = localSearches.map(s =>
+        s.id === searchId ? { ...s, name: editedName.trim() || undefined } : s
+      );
+      localStorage.setItem('weather_search_history', JSON.stringify({ searches: updatedSearches }));
+
+      setIsEditingName(false);
+    } catch (error) {
+      console.error('Error saving name:', error);
+      setNameError(error.message || 'Failed to save name');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedName(search.name || '');
+    setNameError('');
+    setIsEditingName(false);
+  };
 
   useEffect(() => {
     loadSearchDetails();
@@ -417,11 +489,63 @@ export default function ForecastDetailsPage() {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
             <AccessTimeIcon sx={{ fontSize: 32, color: 'primary.main', mr: 1 }} />
             <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
-              Forecast Details
+              {search.name || 'Forecast Details'}
             </Typography>
+            {isPremium && !isEditingName && (
+              <Tooltip title="Edit name">
+                <IconButton
+                  onClick={() => {
+                    setEditedName(search.name || '');
+                    setIsEditingName(true);
+                  }}
+                  sx={{ ml: 2 }}
+                >
+                  <EditIcon />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
+
+          {/* Name Editing Interface */}
+          {isPremium && isEditingName && (
+            <Fade in={true}>
+              <Paper sx={{ p: 3, mb: 3, maxWidth: 600, mx: 'auto' }}>
+                <Stack spacing={2}>
+                  <SearchNameInput
+                    value={editedName}
+                    onChange={setEditedName}
+                    onValidate={validateName}
+                    onClearError={() => setNameError('')}
+                    disabled={savingName}
+                    error={!!nameError}
+                    errorText={nameError}
+                    label="Search Name"
+                  />
+                  <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<CancelIcon />}
+                      onClick={handleCancelEdit}
+                      disabled={savingName}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="contained"
+                      startIcon={savingName ? <CircularProgress size={16} /> : <SaveIcon />}
+                      onClick={handleSaveName}
+                      disabled={savingName || !!nameError}
+                    >
+                      {savingName ? 'Saving...' : 'Save Name'}
+                    </Button>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Fade>
+          )}
+
           <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-            Search from {formatDateTime(search.timestamp)}
+            {search.name ? `Saved ${formatDateTime(search.timestamp)}` : `Search from ${formatDateTime(search.timestamp)}`}
           </Typography>
           <Chip
             label={`${search.coordinates.length} location${search.coordinates.length > 1 ? 's' : ''}`}

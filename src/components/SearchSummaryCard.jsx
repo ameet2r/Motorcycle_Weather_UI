@@ -19,6 +19,7 @@ import ReplayIcon from '@mui/icons-material/Replay';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline';
 
 export default function SearchSummaryCard({ search, onClick, onEditSearch, onRedoSearch, onDeleteSearch, isRedoing, isDeleting }) {
 
@@ -42,6 +43,9 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
 
   // Check if this is a cloud-only search (has coordinates but no forecast data)
   const isCloudOnly = search.cloudOnly || search.coordinates.some(coord => !coord.summary);
+
+  // Check if search has a name
+  const hasName = search.name && search.name.trim();
 
   return (
     <Card
@@ -69,12 +73,27 @@ export default function SearchSummaryCard({ search, onClick, onEditSearch, onRed
                 height: 40
               }}
             >
-              <AccessTimeIcon sx={{ fontSize: 20 }} />
+              {hasName ? (
+                <DriveFileRenameOutlineIcon sx={{ fontSize: 20 }} />
+              ) : (
+                <AccessTimeIcon sx={{ fontSize: 20 }} />
+              )}
             </Avatar>
             <Box>
-              <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600, mb: 0.25 }}>
-                {formatDateTime(search.timestamp)}
-              </Typography>
+              {hasName ? (
+                <>
+                  <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600, mb: 0.25 }}>
+                    {search.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    {formatDateTime(search.timestamp)}
+                  </Typography>
+                </>
+              ) : (
+                <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600, mb: 0.25 }}>
+                  {formatDateTime(search.timestamp)}
+                </Typography>
+              )}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Chip
                   icon={<LocationOnIcon sx={{ fontSize: '14px !important' }} />}

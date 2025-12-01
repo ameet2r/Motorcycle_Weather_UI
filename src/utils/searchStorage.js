@@ -229,6 +229,7 @@ export async function saveSearch(searchData, membershipTier, originalSearchId = 
     const minimalSearchData = {
       id: searchData.id,
       timestamp: searchData.timestamp,
+      name: searchData.name,
       coordinates: searchData.coordinates.map(coord => ({
         key: coord.key,
         latitude: coord.latitude,
@@ -445,6 +446,11 @@ export function searchSearchesLocal(membershipTier, searchText) {
   // Search in localStorage
   const localSearches = getSearchHistory();
   const localResults = localSearches.filter(search => {
+    // Check name first
+    if (search.name?.toLowerCase().includes(normalizedSearch)) {
+      return true;
+    }
+    // Check addresses
     return search.coordinates.some(coord =>
       coord.address?.toLowerCase().includes(normalizedSearch)
     );

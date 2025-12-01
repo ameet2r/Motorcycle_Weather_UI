@@ -13,8 +13,10 @@ import {
   Backdrop,
 } from "@mui/material";
 import LocationForm from "../components/LocationForm";
+import SearchNameInput from "../components/SearchNameInput";
 import { generateSearchId } from "../utils/localStorage";
-import { saveSearch, getSearchByIdFromStorage } from "../utils/searchStorage";
+import { saveSearch, getSearchByIdFromStorage, getAllSearches } from "../utils/searchStorage";
+import { searchSearchesBackend } from "../utils/searchStorage";
 import { generateCoordinateSummary } from "../utils/forecastSummary";
 import { authenticatedPost, isAuthError } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -39,10 +41,6 @@ const pulse = keyframes`
 `;
 
 export default function NewSearchPage() {
-  const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState('');
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
@@ -50,6 +48,65 @@ export default function NewSearchPage() {
 
   const initialCoordinates = location.state?.coordinates || [];
   const originalSearchId = location.state?.originalSearchId || null;
+  const initialSearchName = location.state?.searchName || '';
+
+  const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('');
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [searchName, setSearchName] = useState(initialSearchName);
+  const [nameError, setNameError] = useState('');
+  const [validatingName, setValidatingName] = useState(false);
+
+  const validateSearchName = async (name, isSubmitValidation = false) => {
+    if (!name || name.trim() === '') {
+      setNameError('');
+      return true;
+    }
+
+    // Only show validating state during form submission, not during typing
+    if (isSubmitValidation) {
+      setValidatingName(true);
+    }
+
+    try {
+      // Check local searches first (fast)
+      const localSearches = getAllSearches(membershipTier);
+      const duplicate = localSearches.find(s =>
+        s.id !== originalSearchId && // Exclude the search being edited
+        s.name && s.name.toLowerCase().trim() === name.toLowerCase().trim()
+      );
+
+      if (duplicate) {
+        setNameError('A search with this name already exists');
+        if (isSubmitValidation) setValidatingName(false);
+        return false;
+      }
+
+      // For premium users, check backend as well
+      if (membershipTier === 'plus' || membershipTier === 'pro') {
+        const backendResult = await searchSearchesBackend(membershipTier, name);
+        const exactMatch = backendResult.searches.find(s =>
+          s.id !== originalSearchId && // Exclude the search being edited
+          s.name && s.name.toLowerCase().trim() === name.toLowerCase().trim()
+        );
+
+        if (exactMatch) {
+          setNameError('A search with this name already exists');
+          if (isSubmitValidation) setValidatingName(false);
+          return false;
+        }
+      }
+
+      setNameError('');
+      if (isSubmitValidation) setValidatingName(false);
+      return true;
+    } catch (error) {
+      console.error('Error validating name:', error);
+      if (isSubmitValidation) setValidatingName(false);
+      return true;  // Allow on error
+    }
+  };
 
   async function fetchWeather(locations) {
     setLoading(true);
@@ -57,6 +114,15 @@ export default function NewSearchPage() {
     setSuccess(false);
 
     try {
+      // Validate name before proceeding
+      if (searchName && searchName.trim()) {
+        const isValid = await validateSearchName(searchName, true);
+        if (!isValid) {
+          setLoading(false);
+          return;
+        }
+      }
+
       setLoadingStep('Validating coordinates...');
       setLoadingStep('Fetching weather data...');
       
@@ -95,6 +161,7 @@ export default function NewSearchPage() {
       const searchData = {
         id: generateSearchId(),
         timestamp: new Date().toISOString(),
+        name: searchName.trim() || undefined,
         coordinates: coordinatesData
       };
 
@@ -178,6 +245,23 @@ export default function NewSearchPage() {
                 <strong>Success!</strong> Weather data retrieved successfully. Redirecting to results...
               </Typography>
             </Alert>
+          </Fade>
+        )}
+
+        {/* Search Name Input (Plus/Pro only) */}
+        {(membershipTier === 'plus' || membershipTier === 'pro') && (
+          <Fade in={true}>
+            <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+              <SearchNameInput
+                value={searchName}
+                onChange={setSearchName}
+                onValidate={validateSearchName}
+                onClearError={() => setNameError('')}
+                disabled={loading || validatingName}
+                error={!!nameError}
+                errorText={nameError}
+              />
+            </Paper>
           </Fade>
         )}
 

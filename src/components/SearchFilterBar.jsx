@@ -95,7 +95,7 @@ const SearchFilterBar = ({
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField
           fullWidth
-          placeholder="Search by location or address..."
+          placeholder="Search by name or location..."
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           onKeyPress={handleKeyPress}

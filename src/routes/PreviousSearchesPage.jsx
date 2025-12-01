@@ -263,7 +263,7 @@ export default function PreviousSearchesPage() {
   };
 
   const handleEditSearch = (search) => {
-    navigate('/', { state: { coordinates: search.coordinates, originalSearchId: search.id } });
+    navigate('/', { state: { coordinates: search.coordinates, originalSearchId: search.id, searchName: search.name } });
   };
 
   const handleRedoSearch = async (search) => {

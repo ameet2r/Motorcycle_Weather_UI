@@ -1,4 +1,4 @@
-import { authenticatedPost, authenticatedGet, authenticatedDelete } from './api';
+import { authenticatedPost, authenticatedGet, authenticatedDelete, authenticatedPatch } from './api';
 
 /**
  * Save a search to the backend
@@ -48,4 +48,14 @@ export async function deleteSearchFromBackend(searchId) {
  */
 export async function clearAllSearchesFromBackend() {
   return await authenticatedDelete('/searches/');
+}
+
+/**
+ * Update a search name
+ * @param {string} searchId - The search ID
+ * @param {string} name - New name (empty string to remove)
+ * @returns {Promise<Object>} The updated search object
+ */
+export async function updateSearchName(searchId, name) {
+  return await authenticatedPatch(`/searches/${searchId}`, { name });
 }
