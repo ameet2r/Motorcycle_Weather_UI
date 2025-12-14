@@ -11,11 +11,5 @@ services:
       - "5173:5173"
     container_name: frontend-dev
 
-  frontend-prod:
-    build: .
-    ports:
-      - "3000:80"
-    container_name: frontend-prod
-
 volumes:
   ui_node_modules:
