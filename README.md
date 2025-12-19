@@ -1,5 +1,3 @@
-# Motorcycle_Weather_UI
+# Motorcycle Weather
 
-Weather forecasting service providing detailed meteorological data for motorcycle enthusiasts and outdoor adventurers across US territories.
-
-The weather forecasting service is made up of two parts. The first part is this repo, which is the code for the website. And the second part is the backend which handles all the logic to retrieve the weather information. Repo of the backend: https://github.com/ameet2r/Motorcycle_Weather
+A weather forecasting application designed for motorcycle enthusiasts and outdoor adventurers. Get detailed meteorological data for your routes and locations across US territories to help plan your next adventure safely.
