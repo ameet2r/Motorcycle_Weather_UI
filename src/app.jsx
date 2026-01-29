@@ -21,11 +21,12 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
-import { useState } from 'react';
-import NewSearchPage from "./routes/NewSearchPage";
-import PreviousSearchesPage from "./routes/PreviousSearchesPage";
-import ForecastDetailsPage from "./routes/ForecastDetailsPage";
-import MembershipPage from "./routes/MembershipPage";
+import { useState, lazy, Suspense } from 'react';
+
+const NewSearchPage = lazy(() => import("./routes/NewSearchPage"));
+const PreviousSearchesPage = lazy(() => import("./routes/PreviousSearchesPage"));
+const ForecastDetailsPage = lazy(() => import("./routes/ForecastDetailsPage"));
+const MembershipPage = lazy(() => import("./routes/MembershipPage"));
 import Footer from "./components/Footer";
 import ConnectivityGate from "./components/ConnectivityGate";
 import AuthPage from "./components/auth/AuthPage";
@@ -365,12 +366,19 @@ function ProtectedApp() {
           }}
           className="fade-in"
         >
-          <Routes>
-            <Route path="/" element={<NewSearchPage />} />
-            <Route path="/previous-searches" element={<PreviousSearchesPage />} />
-            <Route path="/forecast/:searchId" element={<ForecastDetailsPage />} />
-            <Route path="/membership" element={<MembershipPage />} />
-          </Routes>
+          <Suspense fallback={
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: 2 }}>
+              <CloudIcon sx={{ fontSize: 48, color: 'primary.main' }} />
+              <Typography variant="body1" color="text.secondary">Loading...</Typography>
+            </Box>
+          }>
+            <Routes>
+              <Route path="/" element={<NewSearchPage />} />
+              <Route path="/previous-searches" element={<PreviousSearchesPage />} />
+              <Route path="/forecast/:searchId" element={<ForecastDetailsPage />} />
+              <Route path="/membership" element={<MembershipPage />} />
+            </Routes>
+          </Suspense>
         </Container>
         <Footer />
       </Box>
