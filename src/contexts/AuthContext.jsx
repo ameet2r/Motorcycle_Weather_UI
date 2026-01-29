@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
   const clearError = () => setError(null);
 
   // Login function
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     try {
       setError(null);
       setLoading(true);
@@ -43,10 +43,10 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Register function
-  const register = async (email, password) => {
+  const register = useCallback(async (email, password) => {
     try {
       setError(null);
       setLoading(true);
@@ -58,10 +58,10 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Forgot password function
-  const forgotPassword = async (email) => {
+  const forgotPassword = useCallback(async (email) => {
     try {
       setError(null);
       setLoading(true);
@@ -87,10 +87,10 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Logout function
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       setError(null);
       await signOut(auth);
@@ -98,10 +98,10 @@ export const AuthProvider = ({ children }) => {
       setError(getAuthErrorMessage(error));
       throw error;
     }
-  };
+  }, []);
 
   // Get current user's ID token
-  const getIdTokenForUser = async () => {
+  const getIdTokenForUser = useCallback(async () => {
     try {
       if (!user) {
         throw new Error('No authenticated user');
@@ -112,7 +112,7 @@ export const AuthProvider = ({ children }) => {
       setError('Failed to get authentication token');
       throw error;
     }
-  };
+  }, [user]);
 
   // Listen for authentication state changes
   useEffect(() => {
@@ -149,7 +149,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Context value
-  const value = {
+  const value = useMemo(() => ({
     user,
     loading,
     error,
@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }) => {
     forgotPassword,
     getIdToken: getIdTokenForUser,
     clearError
-  };
+  }), [user, loading, error, login, register, logout, forgotPassword, getIdTokenForUser]);
 
   return (
     <AuthContext.Provider value={value}>

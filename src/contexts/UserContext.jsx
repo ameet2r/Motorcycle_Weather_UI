@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { onIdTokenChanged } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 import { authenticatedGet } from '../utils/api';
@@ -97,13 +97,14 @@ export const UserProvider = ({ children }) => {
   }, [userProfile?.membershipTier]);
 
   // Context value
-  const value = {
+  const membershipTier = userProfile?.membershipTier || 'free';
+  const value = useMemo(() => ({
     userProfile,
     loading,
     error,
     refetchProfile: fetchUserProfile,
-    membershipTier: userProfile?.membershipTier || 'free'
-  };
+    membershipTier
+  }), [userProfile, loading, error, fetchUserProfile, membershipTier]);
 
   return (
     <UserContext.Provider value={value}>
