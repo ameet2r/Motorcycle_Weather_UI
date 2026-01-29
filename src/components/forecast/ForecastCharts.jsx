@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -94,7 +94,7 @@ function CustomTooltip({ active, payload, label }) {
 /**
  * ForecastCharts - Interactive charts for temperature, wind, and precipitation
  */
-export default function ForecastCharts({ periods, solarInfo }) {
+function ForecastCharts({ periods, solarInfo }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [expanded, setExpanded] = useState(true);
@@ -105,61 +105,70 @@ export default function ForecastCharts({ periods, solarInfo }) {
     return null;
   }
 
-  // Prepare data for charts
-  const chartData = periods.map((period) => ({
-    time: formatTime(period.start_time),
-    fullTime: formatDateTimeUtil(period.start_time),
-    temperature: period.temperature,
-    windSpeed: extractWindSpeed(period.wind_speed),
-    windGust: extractWindGust(period.wind_gust),
-    windDirection: period.wind_direction,
-    precipitation: period.probability_of_precip ?? 0,
-    rideScore: Math.round(getRideScore(period)),
-    humidity: period.humidity != null && period.humidity !== '' ? Number(period.humidity) : null,
-    visibility: period.visibility != null && period.visibility !== '' ? Number(period.visibility) : null,
-    apparentTemp: period.apparent_temperature != null && period.apparent_temperature !== '' ? Number(period.apparent_temperature) : null,
-    timestamp: new Date(period.start_time).getTime(),
-  }));
+  // Prepare data for charts (memoized to avoid recomputation on unrelated re-renders)
+  const {
+    chartData, tempDomainMin, tempDomainMax, windDomainMax, hasGustData,
+    hasHumidityData, hasVisibilityData, visDomainMax,
+    hasApparentTempData, apparentTempDomainMin, apparentTempDomainMax,
+    sunrise, sunset, now,
+  } = useMemo(() => {
+    const chartData = periods.map((period) => ({
+      time: formatTime(period.start_time),
+      fullTime: formatDateTimeUtil(period.start_time),
+      temperature: period.temperature,
+      windSpeed: extractWindSpeed(period.wind_speed),
+      windGust: extractWindGust(period.wind_gust),
+      windDirection: period.wind_direction,
+      precipitation: period.probability_of_precip ?? 0,
+      rideScore: Math.round(getRideScore(period)),
+      humidity: period.humidity != null && period.humidity !== '' ? Number(period.humidity) : null,
+      visibility: period.visibility != null && period.visibility !== '' ? Number(period.visibility) : null,
+      apparentTemp: period.apparent_temperature != null && period.apparent_temperature !== '' ? Number(period.apparent_temperature) : null,
+      timestamp: new Date(period.start_time).getTime(),
+    }));
 
-  // Calculate chart domain ranges
-  const temps = chartData.map(d => d.temperature);
-  const tempMin = Math.min(...temps);
-  const tempMax = Math.max(...temps);
-  const tempRange = tempMax - tempMin;
-  const tempDomainMin = Math.floor(tempMin - tempRange * 0.1);
-  const tempDomainMax = Math.ceil(tempMax + tempRange * 0.1);
+    const temps = chartData.map(d => d.temperature);
+    const tempMin = Math.min(...temps);
+    const tempMax = Math.max(...temps);
+    const tempRange = tempMax - tempMin;
+    const tempDomainMin = Math.floor(tempMin - tempRange * 0.1);
+    const tempDomainMax = Math.ceil(tempMax + tempRange * 0.1);
 
-  const winds = chartData.map(d => d.windSpeed);
-  const gusts = chartData.map(d => d.windGust).filter(g => g !== null);
-  const hasGustData = gusts.length > 0;
-  const windMax = Math.max(...winds, ...(gusts.length > 0 ? gusts : [0]));
-  const windDomainMax = Math.ceil(windMax * 1.2);
+    const winds = chartData.map(d => d.windSpeed);
+    const gusts = chartData.map(d => d.windGust).filter(g => g !== null);
+    const hasGustData = gusts.length > 0;
+    const windMax = Math.max(...winds, ...(gusts.length > 0 ? gusts : [0]));
+    const windDomainMax = Math.ceil(windMax * 1.2);
 
-  // Check availability of new gridpoint fields
-  const humidityValues = chartData.map(d => d.humidity).filter(v => v !== null);
-  const hasHumidityData = humidityValues.length > 0;
+    const humidityValues = chartData.map(d => d.humidity).filter(v => v !== null);
+    const hasHumidityData = humidityValues.length > 0;
 
-  const visibilityValues = chartData.map(d => d.visibility).filter(v => v !== null);
-  const hasVisibilityData = visibilityValues.length > 0;
-  const visMax = hasVisibilityData ? Math.max(...visibilityValues) : 10;
-  const visDomainMax = Math.ceil(visMax * 1.2);
+    const visibilityValues = chartData.map(d => d.visibility).filter(v => v !== null);
+    const hasVisibilityData = visibilityValues.length > 0;
+    const visMax = hasVisibilityData ? Math.max(...visibilityValues) : 10;
+    const visDomainMax = Math.ceil(visMax * 1.2);
 
-  const apparentTempValues = chartData.map(d => d.apparentTemp).filter(v => v !== null);
-  const hasApparentTempData = apparentTempValues.length > 0;
-  const atMin = hasApparentTempData ? Math.min(...apparentTempValues) : tempMin;
-  const atMax = hasApparentTempData ? Math.max(...apparentTempValues) : tempMax;
-  const combinedTempMin = Math.min(tempMin, atMin);
-  const combinedTempMax = Math.max(tempMax, atMax);
-  const combinedTempRange = combinedTempMax - combinedTempMin;
-  const apparentTempDomainMin = Math.floor(combinedTempMin - combinedTempRange * 0.1);
-  const apparentTempDomainMax = Math.ceil(combinedTempMax + combinedTempRange * 0.1);
+    const apparentTempValues = chartData.map(d => d.apparentTemp).filter(v => v !== null);
+    const hasApparentTempData = apparentTempValues.length > 0;
+    const atMin = hasApparentTempData ? Math.min(...apparentTempValues) : tempMin;
+    const atMax = hasApparentTempData ? Math.max(...apparentTempValues) : tempMax;
+    const combinedTempMin = Math.min(tempMin, atMin);
+    const combinedTempMax = Math.max(tempMax, atMax);
+    const combinedTempRange = combinedTempMax - combinedTempMin;
+    const apparentTempDomainMin = Math.floor(combinedTempMin - combinedTempRange * 0.1);
+    const apparentTempDomainMax = Math.ceil(combinedTempMax + combinedTempRange * 0.1);
 
-  // Get sunrise/sunset times if available
-  const sunrise = solarInfo?.sunrise ? new Date(solarInfo.sunrise).getTime() : null;
-  const sunset = solarInfo?.sunset ? new Date(solarInfo.sunset).getTime() : null;
+    const sunrise = solarInfo?.sunrise ? new Date(solarInfo.sunrise).getTime() : null;
+    const sunset = solarInfo?.sunset ? new Date(solarInfo.sunset).getTime() : null;
+    const now = new Date().getTime();
 
-  // Get current time for "Now" reference line
-  const now = new Date().getTime();
+    return {
+      chartData, tempDomainMin, tempDomainMax, windDomainMax, hasGustData,
+      hasHumidityData, hasVisibilityData, visDomainMax,
+      hasApparentTempData, apparentTempDomainMin, apparentTempDomainMax,
+      sunrise, sunset, now,
+    };
+  }, [periods, solarInfo]);
 
   const handleChartTypeChange = (event, newChartType) => {
     if (newChartType !== null) {
@@ -912,3 +921,5 @@ export default function ForecastCharts({ periods, solarInfo }) {
     </Paper>
   );
 }
+
+export default memo(ForecastCharts);

@@ -815,7 +815,6 @@ export default function ForecastDetailsPage() {
         )}
 
         {/* Location Tabs */}
-        <TabContext value={activeTab}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
             <Tabs
               value={activeTab}
@@ -854,8 +853,9 @@ export default function ForecastDetailsPage() {
           </Box>
 
           {search.coordinates.map((coord, coordIndex) => (
-            <TabPanel key={coordIndex} value={String(coordIndex)} sx={{ p: 0 }}>
+            activeTab === String(coordIndex) ? (
               <Card
+                key={coordIndex}
                 sx={{
                   borderRadius: 3,
                   border: '1px solid',
@@ -1109,7 +1109,6 @@ export default function ForecastDetailsPage() {
 
                   {/* Day Tabs */}
                   <Box sx={{ p: { xs: 1, sm: 1.5 } }}>
-                    <TabContext value={activeDayTabs[coordIndex] || ""}>
                       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                         <Tabs
                           value={activeDayTabs[coordIndex] || ""}
@@ -1144,15 +1143,18 @@ export default function ForecastDetailsPage() {
                         </Tabs>
                       </Box>
 
-                      {Object.entries(coord.summary.dailySummaries)
-                        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-                        .map(([date, daySummary]) => {
-                          const periodMapping = createPeriodToDateMapping(coord.periods);
-                          const periodIndices = periodMapping[date];
-                          const periods = periodIndices ? periodIndices.map(i => coord.periods[i]) : [];
+                      {(() => {
+                        const periodMapping = createPeriodToDateMapping(coord.periods);
+                        return Object.entries(coord.summary.dailySummaries)
+                          .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+                          .map(([date, daySummary]) => {
+                            const periodIndices = periodMapping[date];
+                            const periods = periodIndices ? periodIndices.map(i => coord.periods[i]) : [];
 
-                          return (
-                            <TabPanel key={date} value={date} sx={{ p: 0 }}>
+                            if (activeDayTabs[coordIndex] !== date) return null;
+
+                            return (
+                              <Box key={date}>
                               {/* Day Summary Card */}
                               <Paper
                                 sx={{
@@ -1354,16 +1356,15 @@ export default function ForecastDetailsPage() {
                                 ))}
                                 </Grid>
                               </Collapse>
-                            </TabPanel>
-                          );
-                        })}
-                    </TabContext>
+                              </Box>
+                            );
+                          });
+                      })()}
                   </Box>
                 </CardContent>
               </Card>
-            </TabPanel>
+            ) : null
           ))}
-        </TabContext>
 
         {/* Error Alert */}
         {redoError && (

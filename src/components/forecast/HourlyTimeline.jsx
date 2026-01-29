@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Box, Paper, Typography, Chip, useTheme, useMediaQuery, Tooltip, IconButton, ClickAwayListener } from '@mui/material';
 import ThermostatIcon from '@mui/icons-material/Thermostat';
 import AirIcon from '@mui/icons-material/Air';
@@ -33,7 +33,7 @@ function isActivePeriod(startTime, endTime) {
 /**
  * HourlyTimeline - Horizontal scrollable timeline showing ride quality for each hour
  */
-export default function HourlyTimeline({ periods }) {
+function HourlyTimeline({ periods }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [tooltipOpen, setTooltipOpen] = useState(false);
@@ -290,3 +290,5 @@ export default function HourlyTimeline({ periods }) {
     </Paper>
   );
 }
+
+export default memo(HourlyTimeline);
