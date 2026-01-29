@@ -138,6 +138,46 @@ export function getRideQualityLevel(score) {
 }
 
 /**
+ * Get ride score from a period object.
+ * Prefers backend ML score (period.ride_score), falls back to client-side formula.
+ */
+export function getRideScore(period) {
+  if (period.ride_score != null) {
+    return period.ride_score;
+  }
+  const windSpeed = typeof period.wind_speed === 'string'
+    ? extractWindSpeed(period.wind_speed)
+    : Number(period.wind_speed || 0);
+  return calculateRideQuality(period.temperature, windSpeed, period.probability_of_precip);
+}
+
+/**
+ * Get ride quality level using 3-tier ML-aligned color scheme.
+ * 80+: Green (Excellent), 50-79: Amber (Fair), <50: Red (Poor)
+ */
+export function getRideQualityLevelV2(score) {
+  if (score >= 80) {
+    return {
+      level: 'Excellent',
+      color: '#4caf50',
+      description: 'Great riding conditions'
+    };
+  }
+  if (score >= 50) {
+    return {
+      level: 'Fair',
+      color: '#ffc107',
+      description: 'Acceptable conditions'
+    };
+  }
+  return {
+    level: 'Poor',
+    color: '#f44336',
+    description: 'Not recommended'
+  };
+}
+
+/**
  * Get temperature color for charts
  */
 export function getTemperatureColor(temp) {

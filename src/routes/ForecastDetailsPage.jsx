@@ -64,6 +64,8 @@ import { useAuth } from "../contexts/AuthContext";
 import WarningIcon from "@mui/icons-material/Warning";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CloudIcon from "@mui/icons-material/Cloud";
+import RestaurantIcon from "@mui/icons-material/Restaurant";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 
 export default function ForecastDetailsPage() {
   const { searchId } = useParams();
@@ -262,6 +264,8 @@ export default function ForecastDetailsPage() {
       // Use authenticated API call
       const result = await authenticatedPost('/CoordinatesToWeather/', apiCoordinates);
       const map = result.coordinates_to_forecasts_map;
+      const optimizations = result.optimizations || null;
+      const departurePlan = result.departure_plan || null;
 
       setRedoLoadingStep('Processing forecast data...');
 
@@ -295,7 +299,9 @@ export default function ForecastDetailsPage() {
         id: generateSearchId(),
         timestamp: new Date().toISOString(),
         name: search.name || undefined,
-        coordinates: coordinatesData
+        coordinates: coordinatesData,
+        optimizations,
+        departurePlan,
       };
 
       // Save to appropriate storage and delete the original search
@@ -767,6 +773,47 @@ export default function ForecastDetailsPage() {
           />
         </Box>
 
+        {/* Golden Departure Window */}
+        {search.departurePlan?.golden_window && (
+          <Paper
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: '2px solid',
+              borderColor: '#ffc107',
+              background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.08) 0%, rgba(255, 193, 7, 0.02) 100%)',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+              <RocketLaunchIcon sx={{ color: '#ffc107', fontSize: 28 }} />
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Golden Departure Window
+              </Typography>
+            </Box>
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              Best time to leave:{' '}
+              <strong>
+                {new Date(search.departurePlan.golden_window.departure_time).toLocaleString([], {
+                  weekday: 'short', hour: 'numeric', minute: '2-digit'
+                })}
+              </strong>
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Chip
+                label={`Avg Score: ${Math.round(search.departurePlan.golden_window.average_score)}`}
+                sx={{ backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }}
+              />
+              {search.departurePlan.improvement > 0 && (
+                <Chip
+                  label={`+${Math.round(search.departurePlan.improvement)} pts vs leaving now`}
+                  variant="outlined"
+                  sx={{ borderColor: '#4caf50', color: '#4caf50', fontWeight: 600 }}
+                />
+              )}
+            </Box>
+          </Paper>
+        )}
+
         {/* Location Tabs */}
         <TabContext value={activeTab}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
@@ -866,6 +913,43 @@ export default function ForecastDetailsPage() {
                       </Grid>
                     </Grid>
                   </Box>
+
+                  {/* Optimization Suggestion (Lunch/Coffee Break) */}
+                  {search.optimizations?.[getCoordinateKey(coord)]?.optimization && (() => {
+                    const opt = search.optimizations[getCoordinateKey(coord)].optimization;
+                    return (
+                      <Alert
+                        severity="info"
+                        icon={<RestaurantIcon />}
+                        sx={{
+                          mx: { xs: 1.5, sm: 2 },
+                          mt: { xs: 1.5, sm: 2 },
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: 'info.main',
+                        }}
+                      >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                          {opt.type === 'lunch_break' ? 'Coffee/Lunch Break Suggestion' : 'Optimization Suggestion'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                          {opt.message || `Waiting ${opt.wait_hours} hour${opt.wait_hours > 1 ? 's' : ''} could improve conditions significantly.`}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                          <Chip
+                            label={`Arrival: ${Math.round(opt.arrival_score)}`}
+                            size="small"
+                            sx={{ backgroundColor: '#f44336', color: '#fff', fontWeight: 600 }}
+                          />
+                          <Chip
+                            label={`After ${opt.wait_hours}h: ${Math.round(opt.optimized_score)}`}
+                            size="small"
+                            sx={{ backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }}
+                          />
+                        </Box>
+                      </Alert>
+                    );
+                  })()}
 
                   {/* Weather Alerts Loading */}
                   {alertsLoading && (

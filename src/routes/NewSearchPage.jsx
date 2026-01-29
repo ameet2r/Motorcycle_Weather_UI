@@ -129,6 +129,8 @@ export default function NewSearchPage() {
       // Use authenticated API call
       const result = await authenticatedPost('/CoordinatesToWeather/', locations);
       const map = result.coordinates_to_forecasts_map;
+      const optimizations = result.optimizations || null;
+      const departurePlan = result.departure_plan || null;
 
       setLoadingStep('Processing forecast data...');
 
@@ -162,7 +164,9 @@ export default function NewSearchPage() {
         id: generateSearchId(),
         timestamp: new Date().toISOString(),
         name: searchName.trim() || undefined,
-        coordinates: coordinatesData
+        coordinates: coordinatesData,
+        optimizations,
+        departurePlan,
       };
 
       // Save to appropriate storage and delete duplicates/original (localStorage for free, backend for plus/pro)

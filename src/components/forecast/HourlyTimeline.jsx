@@ -4,7 +4,7 @@ import ThermostatIcon from '@mui/icons-material/Thermostat';
 import AirIcon from '@mui/icons-material/Air';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { calculateRideQuality, getRideQualityLevel } from '../../utils/rideQuality';
+import { getRideScore, getRideQualityLevelV2 } from '../../utils/rideQuality';
 import { formatTime } from '../../utils/dateTimeFormatters';
 
 /**
@@ -45,25 +45,18 @@ export default function HourlyTimeline({ periods }) {
   const tooltipContent = (
     <Box sx={{ maxWidth: 350 }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-        How Ride Quality is Calculated
+        ML-Powered Ride Quality
       </Typography>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        Each hour is scored 0-100 based on three factors:
+        Each hour is scored 0-100 using a machine learning model that evaluates temperature, wind, precipitation, visibility, humidity, and more.
       </Typography>
-      <Box component="ul" sx={{ pl: 2, m: 0, mb: 1, fontSize: '0.875rem' }}>
-        <li><strong>Temperature (30%):</strong> Ideal 60-75°F, acceptable 50-85°F</li>
-        <li><strong>Wind Speed (40%):</strong> Safe under 10mph, caution above 20mph</li>
-        <li><strong>Precipitation (30%):</strong> Dry under 10%, risky above 30%</li>
-      </Box>
       <Typography variant="body2" sx={{ mb: 0.5 }}>
         <strong>Quality Levels:</strong>
       </Typography>
       <Box component="ul" sx={{ pl: 2, m: 0, mb: 1.5, fontSize: '0.875rem' }}>
-        <li>85-100: Excellent ✅ (Green)</li>
-        <li>70-84: Good 👍 (Light Green)</li>
-        <li>55-69: Fair ⚠️ (Amber)</li>
-        <li>40-54: Caution ⚠️ (Orange)</li>
-        <li>0-39: Poor ❌ (Red)</li>
+        <li>80-100: Excellent (Green)</li>
+        <li>50-79: Fair (Amber)</li>
+        <li>0-49: Poor (Red)</li>
       </Box>
 
       {/* Key/Legend */}
@@ -79,14 +72,12 @@ export default function HourlyTimeline({ periods }) {
         }}
       >
         {[
-          { level: 'Excellent', color: '#4caf50', emoji: '✅' },
-          { level: 'Good', color: '#8bc34a', emoji: '👍' },
-          { level: 'Fair', color: '#ffc107', emoji: '⚠️' },
-          { level: 'Poor', color: '#f44336', emoji: '❌' },
+          { level: 'Excellent', color: '#4caf50' },
+          { level: 'Fair', color: '#ffc107' },
+          { level: 'Poor', color: '#f44336' },
         ].map((item) => (
           <Chip
             key={item.level}
-            icon={<span style={{ fontSize: '0.8rem' }}>{item.emoji}</span>}
             label={item.level}
             size="small"
             variant="outlined"
@@ -180,12 +171,8 @@ export default function HourlyTimeline({ periods }) {
       >
         {periods.map((period, index) => {
           const windSpeed = extractWindSpeed(period.wind_speed);
-          const rideScore = calculateRideQuality(
-            period.temperature,
-            windSpeed,
-            period.probability_of_precip
-          );
-          const quality = getRideQualityLevel(rideScore);
+          const rideScore = getRideScore(period);
+          const quality = getRideQualityLevelV2(rideScore);
           const isActive = isActivePeriod(period.start_time, period.end_time);
           const hourLabel = formatTime(period.start_time);
 
@@ -225,15 +212,18 @@ export default function HourlyTimeline({ periods }) {
                   {hourLabel}
                 </Typography>
 
-                {/* Quality indicator emoji */}
-                <Box
+                {/* Numeric ride score */}
+                <Typography
+                  variant="caption"
                   sx={{
-                    fontSize: isMobile ? '1.2rem' : '1.5rem',
+                    fontWeight: 700,
+                    fontSize: isMobile ? '1rem' : '1.2rem',
+                    color: quality.color,
                     lineHeight: 1,
                   }}
                 >
-                  {quality.emoji}
-                </Box>
+                  {Math.round(rideScore)}
+                </Typography>
 
                 {/* Temperature */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -259,7 +249,7 @@ export default function HourlyTimeline({ periods }) {
                   </Typography>
                 </Box>
 
-                {/* Ride score chip */}
+                {/* Ride quality level chip */}
                 {!isMobile && (
                   <Chip
                     label={quality.level}
